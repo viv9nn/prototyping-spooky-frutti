@@ -16,7 +16,7 @@ import {
   playWinFanfare,
 } from "@/lib/dress-up/audio";
 import PixelAvatar from "./PixelAvatar";
-import { addHearts } from "@/lib/wallet";
+import { finishChapter } from "@/lib/progress";
 
 interface FlyingEntity {
   instanceId: number;
@@ -35,7 +35,7 @@ interface OutfitSlots {
 }
 
 export default function DressUpGame() {
-  const [gameState, setGameState] = useState<"INTRO" | "PLAYING" | "VICTORY">("INTRO");
+  const [gameState, setGameState] = useState<"PLAYING" | "VICTORY">("PLAYING");
   const [slots, setSlots] = useState<OutfitSlots>({
     top: null,
     bottom: null,
@@ -176,7 +176,7 @@ export default function DressUpGame() {
 
       if (won) {
         playWinFanfare();
-        addHearts(10);
+        finishChapter("dress-up", 100);
         setTimeout(() => {
           setGameState("VICTORY");
         }, 1200);
@@ -213,57 +213,6 @@ export default function DressUpGame() {
 
   return (
     <div className="dress-up-container">
-      {/* --- INTRO SCREEN --- */}
-      {gameState === "INTRO" && (
-        <div className="vn-stage window">
-          <div className="intro-screen">
-            <div className="intro-header">
-              <span className="retro-badge">Episode 1</span>
-              <h1 className="page-title">Date Night Dapper</h1>
-              <p className="intro-subtitle">
-                Help Mr. Honeycrisp pick a sharp outfit for his date with Miss Oishii!
-              </p>
-            </div>
-
-            <div className="intro-avatar-preview">
-              <PixelAvatar
-                top={null}
-                bottom={null}
-                shoes={null}
-                accessory={null}
-              />
-            </div>
-
-            <div className="intro-rules window">
-              <h2 className="rules-heading">How to Play:</h2>
-              <ul>
-                <li>
-                  <span className="rule-bullet">✦</span> Clothes fly across the room from Mr. Honeycrisp&rsquo;s overflowing closet.
-                </li>
-                <li>
-                  <span className="rule-bullet">✦</span> Click to catch a <strong>Top</strong>, <strong>Bottom</strong>, <strong>Shoes</strong>, and <strong>Accessory</strong>.
-                </li>
-                <li>
-                  <span className="rule-bullet">✦</span> <strong>Grab clean & dressy clothes</strong>. Watch out for stained, moth-eaten, or ripped junk!
-                </li>
-                <li>
-                  <span className="rule-bullet">✦</span> You pass when <strong>all 4 articles are completed and clean</strong>.
-                </li>
-              </ul>
-            </div>
-
-            <button
-              onClick={() => {
-                playCatchGood();
-                setGameState("PLAYING");
-              }}
-              className="vn-choice start-button"
-            >
-              Start Getting Dressed! ▶
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* --- PLAYING SCREEN --- */}
       {gameState === "PLAYING" && (
@@ -437,8 +386,11 @@ export default function DressUpGame() {
               clean attire when I take you out, Miss Oishii.&rdquo;
             </p>
             <div className="victory-reward-badge">
-              ♥ +10 Hearts Awarded to Your Wallet!
+              ★ Chapter Complete! Score: 100 ★
             </div>
+            <p className="dialogue-subtext" style={{ marginTop: "8px", color: "var(--yellow)" }}>
+              ✦ Bouquet Skill for The Proposal is now maxed out (Easy)! ✦
+            </p>
           </div>
 
           <div className="victory-actions">
@@ -450,9 +402,6 @@ export default function DressUpGame() {
             </button>
             <Link href="/" className="vn-choice victory-btn">
               Back to Arcade ➔
-            </Link>
-            <Link href="/shop" className="vn-choice victory-btn">
-              Visit Gift Shop 🎁
             </Link>
           </div>
         </div>
