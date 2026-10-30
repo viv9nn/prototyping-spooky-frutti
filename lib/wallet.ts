@@ -1,61 +1,58 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { chapters } from "@/lib/chapters";
+import { createStore } from "@/lib/store";
 
-const STORAGE_KEY = "arcade-hearts";
-const listeners = new Set<() => void>();
-let hearts: number | null = null; // loaded from localStorage on first use
+// Retries the player gets on top of the 1 heart each game costs.
+const EXTRA_HEARTS = 3;
+const STARTING_HEARTS = chapters.filter((chapter) => !chapter.isFinale).length + EXTRA_HEARTS;
 
-function getHearts() {
-  if (hearts === null) {
-    const saved = Number(localStorage.getItem(STORAGE_KEY));
-    hearts = Number.isSafeInteger(saved) && saved >= 0 ? saved : 0;
-  }
-  return hearts;
-}
+function createCurrency(key: string, starting: number) {
+  const store = createStore<number>(key, starting, (raw) => {
+    const saved = Number(raw);
+    return Number.isSafeInteger(saved) && saved >= 0 ? saved : null;
+  });
 
-function setHearts(count: number) {
-  hearts = count;
-  localStorage.setItem(STORAGE_KEY, String(count));
-  listeners.forEach((listener) => listener());
+  return {
+    get: store.get,
+    useCount: store.useValue,
+    reset: () => store.set(starting),
+
+    // Returns false, and changes nothing, unless amount is a positive whole number.
+    add(amount: number) {
+      if (!isValidAmount(amount)) return false;
+      store.set(store.get() + amount);
+      return true;
+    },
+
+    // Returns false, and changes nothing, if the amount is invalid or the player
+    // doesn't have enough.
+    spend(amount: number) {
+      if (!isValidAmount(amount) || amount > store.get()) return false;
+      store.set(store.get() - amount);
+      return true;
+    },
+  };
 }
 
 function isValidAmount(amount: number) {
   return Number.isSafeInteger(amount) && amount > 0;
 }
 
-// Returns false, and changes nothing, unless amount is a positive whole number.
-export function addHearts(amount: number) {
-  if (!isValidAmount(amount)) return false;
-  setHearts(getHearts() + amount);
-  return true;
-}
+const hearts = createCurrency("arcade-heart-lives", STARTING_HEARTS);
+const money = createCurrency("arcade-money", 0);
 
-// Returns false, and changes nothing, if the amount is invalid or the player
-// doesn't have enough hearts.
-export function spendHearts(amount: number) {
-  if (!isValidAmount(amount) || amount > getHearts()) return false;
-  setHearts(getHearts() - amount);
-  return true;
-}
+export const getHearts = hearts.get;
+export const addHearts = hearts.add;
+export const spendHearts = hearts.spend;
+export const useHearts = hearts.useCount;
 
-function subscribe(listener: () => void) {
-  // Keeps the count in sync when another browser tab changes it.
-  function onStorage(event: StorageEvent) {
-    if (event.key === STORAGE_KEY || event.key === null) {
-      hearts = null;
-      listener();
-    }
-  }
-  listeners.add(listener);
-  window.addEventListener("storage", onStorage);
-  return () => {
-    listeners.delete(listener);
-    window.removeEventListener("storage", onStorage);
-  };
-}
+export const getMoney = money.get;
+export const addMoney = money.add;
+export const spendMoney = money.spend;
+export const useMoney = money.useCount;
 
-// React hook: the current heart count, re-rendering whenever it changes.
-export function useHearts() {
-  return useSyncExternalStore(subscribe, getHearts, () => 0);
+export function resetWallet() {
+  hearts.reset();
+  money.reset();
 }
