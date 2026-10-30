@@ -459,53 +459,68 @@ export default function Stage3Game() {
 
   return (
     <div className="stage-3-container">
-      {/* HUD Header */}
-      <header className="stage3-hud">
+      {/* HUD Header (Aesthetic Pixel Arcade Bezel) */}
+      <header className="stage3-hud-bar">
         {/* Timer */}
-        <div className="hud-card hud-timer">
-          <span className="hud-label">TIME REMAINING</span>
-          <div className="hud-value timer-digits">
-            <span className="timer-icon">⏱️</span>
+        <div className="hud-card hud-timer window">
+          <div className="hud-header-label">
+            <span className="hud-label-text">⏱ TIME REMAINING</span>
+          </div>
+          <div className="hud-timer-digits">
             <span>{timeLeft.toString().padStart(2, "0")}s</span>
           </div>
-          <div className="timer-bar-wrap">
-            <div
-              className="timer-bar-fill"
-              style={{ width: `${(timeLeft / STAGE_3_CONFIG.stageLengthSec) * 100}%` }}
-            />
+          <div className="hud-pixel-segmented-bar">
+            {Array.from({ length: 12 }).map((_, i) => {
+              const active = i < Math.ceil((timeLeft / STAGE_3_CONFIG.stageLengthSec) * 12);
+              return (
+                <span
+                  key={i}
+                  className={`hud-segment-block ${active ? "seg-gold" : "seg-off"}`}
+                />
+              );
+            })}
           </div>
         </div>
 
         {/* Suspicion Meter */}
-        <div className="hud-card hud-suspicion">
-          <div className="suspicion-header">
-            <span className="hud-label">SUSPICION</span>
+        <div className="hud-card hud-suspicion window">
+          <div className="hud-header-label">
+            <span className="hud-label-text">⚠️ SUSPICION</span>
             <span
-              className={`suspicion-number ${
-                suspicion >= 70 ? "text-danger" : suspicion >= 40 ? "text-warning" : "text-safe"
+              className={`suspicion-val-tag ${
+                suspicion >= 70 ? "val-danger" : suspicion >= 40 ? "val-warning" : "val-safe"
               }`}
             >
               {suspicion} / 100
             </span>
           </div>
-          <div className="suspicion-meter-track">
-            <div
-              className={`suspicion-meter-fill ${
-                suspicion >= 70 ? "meter-danger" : suspicion >= 40 ? "meter-warning" : "meter-safe"
-              }`}
-              style={{ width: `${suspicion}%` }}
-            />
+          <div className="hud-pixel-segmented-bar">
+            {Array.from({ length: 20 }).map((_, i) => {
+              const active = i < Math.ceil((suspicion / 100) * 20);
+              const colorClass =
+                suspicion >= 70 ? "seg-danger" : suspicion >= 40 ? "seg-warning" : "seg-safe";
+              return (
+                <span
+                  key={i}
+                  className={`hud-segment-block ${active ? colorClass : "seg-off"}`}
+                />
+              );
+            })}
           </div>
         </div>
 
         {/* Tries / Lives */}
-        <div className="hud-card hud-lives">
-          <span className="hud-label">TRIES</span>
-          <div className="lives-hearts">
+        <div className="hud-card hud-lives window">
+          <div className="hud-header-label">
+            <span className="hud-label-text">♥ TRIES</span>
+          </div>
+          <div className="hud-pixel-hearts">
             {[1, 2, 3].map((heartIdx) => (
               <span
                 key={heartIdx}
-                className={`heart-icon ${heartIdx <= livesLeft ? "heart-alive" : "heart-lost"}`}
+                className={`hud-heart-unit ${
+                  heartIdx <= livesLeft ? "heart-active" : "heart-spent"
+                }`}
               >
                 ♥
               </span>
@@ -513,11 +528,11 @@ export default function Stage3Game() {
           </div>
         </div>
 
-        {/* Sound & Shortcuts */}
-        <div className="hud-actions">
+        {/* Sound & Dev Controls */}
+        <div className="hud-card hud-controls-card window">
           <button
             type="button"
-            className="hud-btn"
+            className="hud-pixel-btn"
             onClick={toggleMute}
             title={isAudioMuted ? "Unmute audio" : "Mute audio"}
           >
@@ -525,7 +540,7 @@ export default function Stage3Game() {
           </button>
           <button
             type="button"
-            className="hud-btn dev-btn-toggle"
+            className="hud-pixel-btn dev-toggle"
             onClick={() => setShowDevControls(!showDevControls)}
             title="Toggle Dev Cheats"
           >

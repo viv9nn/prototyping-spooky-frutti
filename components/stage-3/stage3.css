@@ -1,6 +1,17 @@
 /* ==========================================================================
-   Stage 3: Late-Night TikTok - 100% Pixelized Arcade Aesthetic
+   Stage 3: Late-Night TikTok - 100% Aesthetic Pixel-Art Arcade Styling
    ========================================================================== */
+
+.stage-3-container,
+.stage-3-container * {
+  box-sizing: border-box;
+  font-family: inherit, 'DotGothic16', monospace, 'Courier New' !important;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+}
 
 .stage-3-container {
   position: relative;
@@ -10,212 +21,209 @@
   display: flex;
   flex-direction: column;
   user-select: none;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
 }
 
-/* Custom Pixel Hand Grab Cursor */
+/* Grab Hand Cursor over interactive elements */
 .viewport-center,
-.pixel-notif-window,
+.aesthetic-pixel-banner,
 .pixel-phone-case {
   cursor: grab;
 }
 
-.pixel-notif-window.pixel-notif-dragging {
+.aesthetic-pixel-banner.banner-dragging {
   cursor: grabbing !important;
 }
 
 /* ==========================================================================
-   HUD Header (Pixelized)
+   HUD Header (Aesthetic Pixel Arcade Bezel)
    ========================================================================== */
 
-.stage3-hud {
+.stage3-hud-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 12px 20px;
+  gap: 14px;
+  padding: 10px 16px;
   margin-bottom: 20px;
+  background: var(--ink);
+  border: 4px solid var(--window);
+  box-shadow:
+    0 -4px 0 var(--white),
+    0 4px 0 var(--white),
+    -4px 0 0 var(--white),
+    4px 0 0 var(--white),
+    0 -8px 0 var(--ink),
+    0 8px 0 var(--ink),
+    -8px 0 0 var(--ink),
+    8px 0 0 var(--ink);
 }
 
 .hud-card {
+  padding: 8px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
-.hud-label {
-  font-size: 14px;
-  letter-spacing: 1px;
+.hud-header-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.hud-label-text {
+  font-size: 15px;
+  font-weight: 700;
   color: var(--yellow);
   text-shadow: 2px 2px 0 var(--ink);
+  letter-spacing: 1px;
 }
 
 /* Timer */
 .hud-timer {
-  min-width: 160px;
+  min-width: 170px;
 }
 
-.timer-digits {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.hud-timer-digits {
   font-size: 26px;
+  font-weight: 700;
   color: var(--white);
   text-shadow: 2px 2px 0 var(--ink);
+  line-height: 1;
 }
 
-.timer-bar-wrap {
-  width: 100%;
-  height: 12px;
-  background: var(--ink);
-  border: 2px solid var(--white);
-  box-shadow: inset 0 0 0 2px var(--ink);
-  overflow: hidden;
+/* Segmented LED Progress Bar */
+.hud-pixel-segmented-bar {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: #0d0a22;
+  border: 2px solid var(--ink);
+  box-shadow: inset 0 0 0 1px var(--window);
 }
 
-.timer-bar-fill {
-  height: 100%;
-  background: repeating-linear-gradient(
-    90deg,
-    var(--yellow) 0px,
-    var(--yellow) 8px,
-    #e6c840 8px,
-    #e6c840 12px
-  );
-  transition: width 0.3s steps(20);
+.hud-segment-block {
+  flex: 1;
+  height: 10px;
+  border-radius: 1px;
+  transition: background-color 0.15s steps(2);
+}
+
+.seg-gold {
+  background: #facc15;
+  box-shadow: 0 0 4px #facc15;
+}
+
+.seg-safe {
+  background: #10b981;
+  box-shadow: 0 0 4px #10b981;
+}
+
+.seg-warning {
+  background: #f59e0b;
+  box-shadow: 0 0 4px #f59e0b;
+}
+
+.seg-danger {
+  background: #ef4444;
+  box-shadow: 0 0 6px #ef4444;
+}
+
+.seg-off {
+  background: #1e1840;
 }
 
 /* Suspicion Meter */
 .hud-suspicion {
   flex: 1;
-  max-width: 320px;
+  max-width: 340px;
 }
 
-.suspicion-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.suspicion-number {
-  font-size: 18px;
+.suspicion-val-tag {
+  font-size: 16px;
   font-weight: 700;
   text-shadow: 2px 2px 0 var(--ink);
 }
 
-.text-safe {
+.val-safe {
   color: #86efac;
 }
 
-.text-warning {
+.val-warning {
   color: var(--yellow);
 }
 
-.text-danger {
+.val-danger {
   color: var(--pink-deep);
-  animation: pixel-flash 0.6s steps(2) infinite;
+  animation: pixel-blink 0.5s steps(2) infinite;
 }
 
-@keyframes pixel-flash {
-  50% { opacity: 0.3; }
+@keyframes pixel-blink {
+  50% { opacity: 0.2; }
 }
 
-.suspicion-meter-track {
-  width: 100%;
-  height: 16px;
-  background: var(--ink);
-  border: 2px solid var(--white);
-  box-shadow: inset 0 0 0 2px var(--ink);
-  overflow: hidden;
-}
-
-.suspicion-meter-fill {
-  height: 100%;
-  transition: width 0.25s steps(20);
-}
-
-.meter-safe {
-  background: repeating-linear-gradient(
-    90deg,
-    #10b981 0px,
-    #10b981 8px,
-    #059669 8px,
-    #059669 12px
-  );
-}
-
-.meter-warning {
-  background: repeating-linear-gradient(
-    90deg,
-    #f59e0b 0px,
-    #f59e0b 8px,
-    #d97706 8px,
-    #d97706 12px
-  );
-}
-
-.meter-danger {
-  background: repeating-linear-gradient(
-    90deg,
-    #ef4444 0px,
-    #ef4444 8px,
-    #b91c1c 8px,
-    #b91c1c 12px
-  );
-  box-shadow: 0 0 8px #ef4444;
-}
-
-/* Lives */
+/* Tries / Lives */
 .hud-lives {
   align-items: center;
+  min-width: 120px;
 }
 
-.lives-hearts {
+.hud-pixel-hearts {
   display: flex;
   gap: 8px;
   font-size: 26px;
+  line-height: 1;
 }
 
-.heart-alive {
+.hud-heart-unit {
+  transition: transform 0.2s steps(2);
+}
+
+.heart-active {
   color: var(--pink);
-  text-shadow: 2px 2px 0 var(--ink);
+  text-shadow: 2px 2px 0 var(--ink), 0 0 6px var(--pink-deep);
 }
 
-.heart-lost {
+.heart-spent {
   color: #3b3564;
   text-shadow: none;
+  opacity: 0.5;
 }
 
-.hud-actions {
+/* Controls */
+.hud-controls-card {
   display: flex;
+  flex-direction: row;
+  align-items: center;
   gap: 8px;
 }
 
-.hud-btn {
+.hud-pixel-btn {
   background: var(--white);
   color: var(--ink);
   border: 2px solid var(--ink);
   padding: 6px 12px;
-  font-size: 16px;
+  font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
-  box-shadow: inset 0 -4px 0 #d8d4f0;
+  box-shadow: inset 0 -3px 0 #d8d4f0;
 }
 
-.hud-btn:hover {
+.hud-pixel-btn:hover {
   background: #ffd6e8;
-  box-shadow: inset 0 -4px 0 var(--pink);
+  box-shadow: inset 0 -3px 0 var(--pink);
 }
 
 /* ==========================================================================
-   Main Viewport Frame (Pixelized VN Stage)
+   Main Stage Viewport
    ========================================================================== */
 
 .stage3-viewport {
   position: relative;
   display: grid;
   grid-template-columns: 1.15fr 1fr;
-  gap: 20px;
+  gap: 24px;
   align-items: center;
   background: repeating-conic-gradient(
     #2a2058 0% 25%,
@@ -239,7 +247,7 @@
 }
 
 /* ==========================================================================
-   Left Side: Bedroom Bed Scene with Miss Oishii & Apple Boyfriend
+   Aesthetic Cozy Bedroom Bed Scene (Left Side)
    ========================================================================== */
 
 .viewport-left {
@@ -250,388 +258,494 @@
   justify-content: flex-end;
 }
 
-.bedside-scene {
+.aesthetic-bedside-scene {
   position: relative;
   width: 100%;
   height: 540px;
-  background: repeating-linear-gradient(
-    90deg,
-    #2a1e52 0px,
-    #2a1e52 24px,
-    #221743 24px,
-    #221743 48px
-  );
-  border: 4px solid var(--ink);
   overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  border: 4px solid var(--ink);
 }
 
-/* Window matching the restaurant scene */
-.bedroom-wall {
+/* Striped Wallpaper matching date restaurant palette */
+.bedroom-striped-wall {
+  position: absolute;
+  inset: 0;
+  bottom: 140px;
+  background: repeating-linear-gradient(
+    90deg,
+    #281b52 0px,
+    #281b52 24px,
+    #1f1443 24px,
+    #1f1443 48px
+  );
+  border-bottom: 4px solid var(--ink);
+}
+
+/* Cozy Window with Curtains */
+.cozy-window-frame {
   position: absolute;
   top: 14px;
-  left: 18px;
-  right: 18px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.bedroom-night-window {
-  width: 220px;
+  left: 20px;
+  width: 200px;
   height: 130px;
-  background: #0d0924;
-  position: relative;
-  overflow: hidden;
+  background: #0d0824;
   border: 4px solid #6c5443;
+  box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.8), 2px 2px 0 var(--ink);
+  overflow: hidden;
 }
 
-.bedroom-night-window::after {
+.cozy-window-frame::after {
   content: "";
   position: absolute;
   top: 0;
   bottom: 0;
   left: 50%;
-  transform: translateX(-50%);
   width: 4px;
+  transform: translateX(-50%);
   background: #6c5443;
 }
 
-.city-skyline {
+.window-curtain {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 28px;
+  background: #e8487f;
+  border-right: 2px solid var(--ink);
+  z-index: 5;
+}
+
+.curtain-l {
+  left: 0;
+  clip-path: polygon(0 0, 100% 0, 40% 100%, 0 100%);
+}
+
+.curtain-r {
+  right: 0;
+  border-right: none;
+  border-left: 2px solid var(--ink);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 60% 100%);
+}
+
+.window-glass {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.sky-stars {
+  position: absolute;
+  inset: 0;
+}
+
+.p-star {
+  position: absolute;
+  color: var(--yellow);
+  font-size: 11px;
+}
+
+.s1 { top: 12px; left: 34px; }
+.s2 { top: 28px; left: 85px; }
+.s3 { top: 14px; right: 38px; }
+
+.pixel-crescent-moon {
+  position: absolute;
+  top: 14px;
+  right: 48px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  box-shadow: -5px 4px 0 0 var(--yellow);
+}
+
+.city-skyline-silhouette {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 60px;
+  height: 52px;
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: 6px;
   padding: 0 10px;
 }
 
-.building {
-  background: #181136;
+.bld {
+  background: #140d33;
+  border-top: 2px solid #231654;
   position: relative;
-  border-top: 2px solid #281d58;
 }
 
-.building::after {
+.bld::after {
   content: "";
   position: absolute;
   inset: 4px;
   background: radial-gradient(circle, var(--yellow) 25%, transparent 30%) 0 0 / 6px 8px;
 }
 
-.b1 { width: 45px; height: 50px; }
-.b2 { width: 65px; height: 60px; }
-.b3 { width: 55px; height: 42px; }
+.b1 { width: 34px; height: 38px; }
+.b2 { width: 44px; height: 48px; }
+.b3 { width: 38px; height: 32px; }
+.b4 { width: 30px; height: 44px; }
 
-.crescent-moon {
+/* Nightstand with Lamp */
+.nightstand-table {
   position: absolute;
-  top: 12px;
-  right: 24px;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  box-shadow: -6px 4px 0 0 var(--yellow);
-}
-
-.star {
-  position: absolute;
-  color: var(--yellow);
-  font-size: 10px;
-}
-
-.s1 { top: 14px; left: 24px; }
-.s2 { top: 32px; left: 74px; }
-
-/* Wall Lamp with pink lampshade matching screenshot */
-.wall-lamp {
-  position: relative;
+  top: 20px;
+  right: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-.lamp-shade {
-  width: 32px;
-  height: 20px;
-  background: var(--pink-deep);
-  border: 2px solid var(--ink);
+.bedside-lamp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.lamp-shade-retro {
+  width: 34px;
+  height: 22px;
+  background: #e8487f;
+  border: 3px solid var(--ink);
   clip-path: polygon(25% 0%, 75% 0%, 100% 100%, 0% 100%);
 }
 
-.lamp-glow {
+.lamp-bulb-glow {
   width: 14px;
   height: 8px;
   background: var(--yellow);
   border: 2px solid var(--ink);
   border-radius: 0 0 8px 8px;
-  box-shadow: 0 4px 14px var(--yellow);
+  box-shadow: 0 6px 18px rgba(255, 230, 128, 0.9);
 }
 
-/* Bed Mattress & Pillows */
-.bed-mattress {
+.lamp-stand-brass {
+  width: 6px;
+  height: 18px;
+  background: #b45309;
+  border: 2px solid var(--ink);
+}
+
+.nightstand-drawer {
+  width: 44px;
+  height: 28px;
+  background: #6c5443;
+  border: 3px solid var(--ink);
+  box-shadow: inset 0 -4px 0 #4a382c;
+  position: relative;
+}
+
+.nightstand-drawer::after {
+  content: "";
   position: absolute;
-  bottom: 110px;
-  left: 0;
-  right: 0;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 4px;
+  background: var(--yellow);
+  border: 1px solid var(--ink);
+}
+
+/* Warm Wooden Bed Headboard */
+.wooden-headboard {
+  position: absolute;
+  bottom: 120px;
+  left: 10px;
+  right: 10px;
   height: 180px;
-  background: #392c68;
-  border-top: 4px solid var(--ink);
+  background: #5c3823;
+  border: 4px solid var(--ink);
+  box-shadow: inset 0 8px 0 #78482d;
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 16px 0;
 }
 
-.pillow {
+.headboard-slat {
+  width: 16px;
+  height: 80px;
+  background: #452a1a;
+  border: 2px solid var(--ink);
+}
+
+/* Fluffy Pillows */
+.pillows-row {
   position: absolute;
-  top: -24px;
-  width: 130px;
-  height: 70px;
+  bottom: 175px;
+  left: 20px;
+  right: 20px;
+  display: flex;
+  justify-content: space-around;
+  z-index: 6;
 }
 
-.pillow-left { left: 24px; }
-.pillow-right { right: 24px; }
+.fluffy-pillow {
+  width: 135px;
+  height: 72px;
+  background: #fdfbff;
+  border: 4px solid var(--ink);
+  box-shadow:
+    inset -4px -4px 0 #d8d4f0,
+    0 4px 8px rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  position: relative;
+}
 
-/* Characters in Bed Container */
-.couple-container {
+.pillow-crease {
+  position: absolute;
+  top: 50%;
+  left: 20px;
+  right: 20px;
+  height: 3px;
+  background: #d8d4f0;
+}
+
+/* Characters in Bed Layer */
+.bed-characters-layer {
   position: relative;
   width: 100%;
-  height: 320px;
+  height: 340px;
   display: flex;
   justify-content: space-around;
   align-items: flex-end;
-  z-index: 5;
+  z-index: 10;
 }
 
-/* Sprites */
-.pixel-sprite {
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-  display: block;
-}
-
-/* Girlfriend (Miss Oishii) */
-.girlfriend-character {
+/* Miss Oishii Sprite */
+.oishii-bed-sprite {
   position: absolute;
-  left: 20px;
-  bottom: 70px;
+  left: 25px;
+  bottom: 85px;
   display: flex;
   flex-direction: column;
   align-items: center;
   transition: transform 0.2s steps(4);
   transform-origin: 50% 90%;
-  z-index: 10;
+  z-index: 12;
 }
 
-.oishii-sprite-box {
+.sprite-anchor {
   position: relative;
-  width: 220px;
-  height: 208px;
+  width: 200px;
+  height: 190px;
 }
 
-.oishii-sprite-img {
-  width: 220px;
-  height: 208px;
+.pixel-sprite {
+  width: 200px;
+  height: 190px;
   object-fit: contain;
 }
 
-.pajamas-body-oishii {
-  width: 110px;
-  height: 52px;
-  background: #7ca8d9;
-  border: 4px solid var(--ink);
-  margin-top: -16px;
-  box-shadow: inset 0 4px 0 #9ec2eb;
+/* Rosy Cheek Blush on Miss Oishii */
+.oishii-blush-marks {
+  position: absolute;
+  top: 102px;
+  left: 45px;
+  right: 45px;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.blush-mark {
+  color: #ff6699;
+  font-size: 16px;
+  font-weight: 900;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.4);
 }
 
 /* Overlays on Miss Oishii */
-.laughing-eyes-overlay {
+.pixel-overlay-eyes {
   position: absolute;
-  top: 88px;
-  left: 64px;
+  top: 80px;
+  left: 58px;
   display: flex;
-  gap: 36px;
-  font-size: 28px;
-  font-weight: 900;
-  color: var(--ink);
-  text-shadow: 1px 1px 0 #ffffff;
-}
-
-.yawn-mouth-overlay {
-  position: absolute;
-  bottom: 34px;
-  left: 102px;
-  font-size: 24px;
+  gap: 34px;
+  font-size: 26px;
   font-weight: 900;
   color: var(--ink);
 }
 
-.laser-beam-indicator {
+.pixel-overlay-mouth {
   position: absolute;
-  top: 86px;
-  right: 18px;
+  bottom: 30px;
+  left: 92px;
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--ink);
+}
+
+.pixel-laser-indicator {
+  position: absolute;
+  top: 78px;
+  right: 14px;
   font-size: 28px;
   color: #ff0055;
-  animation: laser-blink 0.2s steps(2) infinite alternate;
+  animation: laser-spark 0.2s steps(2) infinite alternate;
 }
 
-@keyframes laser-blink {
+@keyframes laser-spark {
   from { transform: scale(1); }
   to { transform: scale(1.3); }
 }
 
-.anger-vein-overlay {
+.pixel-anger-indicator {
   position: absolute;
-  top: 36px;
-  right: 32px;
-  font-size: 32px;
-  animation: bounce-tell 0.4s infinite alternate;
+  top: 30px;
+  right: 24px;
+  font-size: 30px;
 }
 
-/* Indicators */
-.tell-alert-bubble {
+/* Tell Bubble */
+.pixel-tell-popup {
   position: absolute;
   top: -24px;
   padding: 4px 10px;
   font-size: 18px;
-  animation: bounce-tell 0.3s steps(2) infinite alternate;
+  animation: popup-bounce 0.3s steps(2) infinite alternate;
 }
 
-@keyframes bounce-tell {
+@keyframes popup-bounce {
   from { transform: translateY(0); }
   to { transform: translateY(-8px); }
 }
 
-.fakeout-bubble {
+.pixel-fakeout-popup {
   position: absolute;
   top: -20px;
   padding: 2px 8px;
-  font-size: 15px;
+  font-size: 14px;
 }
 
-/* Apple Boyfriend */
-.player-character {
+/* Honeycrisp Apple Sprite */
+.apple-bed-sprite {
   position: absolute;
-  right: 32px;
-  bottom: 65px;
+  right: 30px;
+  bottom: 80px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  z-index: 9;
+  z-index: 11;
 }
 
-.apple-sprite-box {
-  position: relative;
-  width: 220px;
-  height: 208px;
-}
-
-.apple-sprite-img {
-  width: 220px;
-  height: 208px;
-  object-fit: contain;
-}
-
-.player-sweat-drop {
+.apple-sweat-drop {
   position: absolute;
-  top: 40px;
-  right: 48px;
+  top: 38px;
+  right: 42px;
   font-size: 22px;
-  animation: drip 1s steps(4) infinite;
+  animation: drip-pixel 1s steps(4) infinite;
 }
 
-@keyframes drip {
+@keyframes drip-pixel {
   0% { transform: translateY(0); }
-  50% { transform: translateY(8px); }
+  50% { transform: translateY(6px); }
   100% { transform: translateY(0); }
 }
 
-.pajamas-body-apple {
-  width: 105px;
-  height: 50px;
-  background: #e2d2ba;
-  border: 4px solid var(--ink);
-  margin-top: -16px;
-  box-shadow: inset 0 4px 0 #f0e2cd;
-}
-
-/* Duvet / Blanket */
-.bed-duvet {
+/* Cozy Quilted Duvet Blanket */
+.cozy-duvet-blanket {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 140px;
-  background: #4a3c7c;
-  border-top: 4px solid var(--white);
-  box-shadow: inset 0 6px 0 var(--ink);
-  z-index: 15;
+  height: 155px;
+  background: #3c2a68;
+  border-top: 4px solid var(--ink);
+  z-index: 18;
 }
 
-.duvet-pink-fold {
+.duvet-pink-folded-sheet {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 24px;
-  background: var(--pink);
+  height: 28px;
+  background: #ff8fc0;
   border-bottom: 4px solid var(--ink);
+  box-shadow: inset 0 4px 0 #ffaed2;
+  position: relative;
 }
 
-/* Spooky Frutti Dialogue Box */
-.stage3-speech-dialogue {
+.stitch-line {
   position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
-  z-index: 35;
-  animation: vn-pop 0.2s steps(2);
+  bottom: 4px;
+  left: 10px;
+  right: 10px;
+  height: 2px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--ink) 0px,
+    var(--ink) 6px,
+    transparent 6px,
+    transparent 12px
+  );
 }
 
-.vn-dialogue-text {
-  font-size: 19px;
-  line-height: 1.4;
-}
-
-@keyframes vn-pop {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Gaze Status Pill */
-.gaze-status-indicator {
+.duvet-quilt-body {
   position: absolute;
-  top: 14px;
+  inset: 28px 0 0 0;
+  background: repeating-linear-gradient(
+    45deg,
+    #4a347c 0px,
+    #4a347c 18px,
+    #3c2a68 18px,
+    #3c2a68 36px
+  );
+}
+
+/* Dialogue Box when Miss Oishii catches / spots */
+.stage3-oishii-dialogue {
+  position: absolute;
   left: 14px;
+  right: 14px;
+  bottom: 14px;
+  z-index: 40;
+  padding: 16px 20px;
+  animation: pop-in 0.2s steps(2);
+}
+
+@keyframes pop-in {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.aesthetic-gaze-pill {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 6px 14px;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 14px;
-  font-size: 14px;
   z-index: 25;
 }
 
-.badge-safe {
-  border-left: 6px solid #10b981;
+.gaze-dot-icon {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid var(--ink);
 }
 
-.badge-warning {
-  border-left: 6px solid var(--yellow);
-}
+.badge-safe .gaze-dot-icon { background: #10b981; }
+.badge-warning .gaze-dot-icon { background: #f59e0b; }
+.badge-danger .gaze-dot-icon { background: #ef4444; }
 
-.badge-danger {
-  border-left: 6px solid var(--pink-deep);
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  background: var(--yellow);
+.gaze-status-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--white);
+  text-shadow: 1px 1px 0 var(--ink);
 }
 
 /* ==========================================================================
-   Center: Pixel-Art Retro Phone Case & TikTok Feed
+   Center: Pixel Phone Mockup & TikTok Screen
    ========================================================================== */
 
 .viewport-center {
@@ -642,23 +756,35 @@
 
 .pixel-phone-case {
   position: relative;
-  width: 326px;
-  height: 574px;
-  padding: 12px;
-  transition: transform 0.2s steps(4);
+  width: 320px;
+  height: 550px;
+  background: #1e1438;
+  padding: 10px;
+  border-radius: 24px;
+  box-shadow:
+    0 -4px 0 var(--white),
+    0 4px 0 var(--white),
+    -4px 0 0 var(--white),
+    4px 0 0 var(--white),
+    0 -8px 0 var(--ink),
+    0 8px 0 var(--ink),
+    -8px 0 0 var(--ink),
+    8px 0 0 var(--ink),
+    0 16px 32px rgba(0, 0, 0, 0.7);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.25);
 }
 
-.pixel-phone-case.phone-snatched {
-  animation: pixel-shake 0.3s steps(4) infinite;
-  filter: sepia(0.8) hue-rotate(300deg);
+.phone-snatched {
+  animation: snatch-shake 0.4s steps(4) infinite;
+  transform: rotate(-14deg) scale(0.92);
 }
 
-@keyframes pixel-shake {
-  0% { transform: translate(0, 0); }
-  25% { transform: translate(-8px, 6px); }
-  50% { transform: translate(8px, -6px); }
-  75% { transform: translate(-6px, -4px); }
-  100% { transform: translate(0, 0); }
+@keyframes snatch-shake {
+  0% { transform: rotate(-14deg) translate(0, 0); }
+  25% { transform: rotate(-12deg) translate(-4px, 4px); }
+  50% { transform: rotate(-16deg) translate(4px, -2px); }
+  75% { transform: rotate(-14deg) translate(-2px, -4px); }
+  100% { transform: rotate(-14deg) translate(0, 0); }
 }
 
 .pixel-phone-screen {
@@ -666,60 +792,152 @@
   width: 100%;
   height: 100%;
   background: #000000;
-  border: 4px solid var(--ink);
-  display: flex;
-  flex-direction: column;
+  border-radius: 16px;
   overflow: hidden;
+  border: 2px solid var(--ink);
 }
 
-/* Pixel Status Bar */
+/* Status Bar */
 .pixel-status-bar {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 36px;
-  padding: 6px 12px 0;
+  height: 28px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 13px;
+  padding: 0 14px;
   color: var(--white);
-  background: rgba(0, 0, 0, 0.7);
-  border-bottom: 2px solid var(--ink);
-  z-index: 60;
-  pointer-events: none;
-}
-
-.pixel-status-time {
-  color: var(--yellow);
+  font-size: 13px;
+  font-weight: 700;
+  z-index: 45;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent);
 }
 
 .pixel-status-notch {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  background: #000000;
+  padding: 3px 10px;
+  border-radius: 10px;
+  border: 1px solid #27272a;
 }
 
 .pixel-notch-dot {
-  width: 4px;
-  height: 4px;
-  background: #ffffff;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #18181b;
 }
 
 .pixel-notch-bar {
-  width: 24px;
+  width: 14px;
   height: 4px;
-  background: #555577;
+  border-radius: 2px;
+  background: #27272a;
 }
 
 .pixel-status-meters {
   display: flex;
+  align-items: center;
   gap: 6px;
+}
+
+.pixel-5g-text {
+  font-size: 11px;
+  color: #a1a1aa;
+}
+
+.pixel-battery-icon {
+  color: #4ade80;
   font-size: 12px;
 }
 
-/* Video Stage */
+/* Top TikTok Tabs Header */
+.pixel-tiktok-header-tabs {
+  position: absolute;
+  top: 28px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 14px;
+  z-index: 35;
+  color: var(--white);
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.8);
+}
+
+.tiktok-live-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.live-red-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: live-blink 1s steps(2) infinite;
+}
+
+@keyframes live-blink {
+  50% { opacity: 0.3; }
+}
+
+.live-text {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.tiktok-center-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.tab-following {
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.tab-separator {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.tab-foryou {
+  position: relative;
+  color: var(--white);
+  cursor: pointer;
+}
+
+.active-underline {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 2px;
+  background: var(--white);
+}
+
+.tiktok-search-btn {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+/* TikTok Stage Layout */
 .pixel-tiktok-stage {
   position: relative;
   width: 100%;
@@ -730,197 +948,280 @@
   overflow: hidden;
 }
 
-.feed-bg-purple {
-  background: repeating-linear-gradient(135deg, #2b1055 0px, #2b1055 16px, #421882 16px, #421882 32px);
-}
-
-.feed-bg-orange {
-  background: repeating-linear-gradient(135deg, #431407 0px, #431407 16px, #7c2d12 16px, #7c2d12 32px);
-}
-
-.feed-bg-indigo {
-  background: repeating-linear-gradient(135deg, #1e1b4b 0px, #1e1b4b 16px, #312e81 16px, #312e81 32px);
-}
-
-.feed-bg-green {
-  background: repeating-linear-gradient(135deg, #064e3b 0px, #064e3b 16px, #065f46 16px, #065f46 32px);
-}
-
-.feed-bg-crimson {
-  background: repeating-linear-gradient(135deg, #4c0519 0px, #4c0519 16px, #881337 16px, #881337 32px);
-}
-
-.pixel-video-anim {
+.pixel-video-wrapper {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Video Scenes */
+.tiktok-scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.pixel-video-svg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Pixel Video Caption Pill Overlay */
+.pixel-video-caption-pill {
+  position: absolute;
+  top: 54px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(20, 10, 40, 0.85);
+  border: 1px solid var(--white);
+  padding: 3px 8px;
+  box-shadow: 2px 2px 0 var(--ink);
+  z-index: 10;
   pointer-events: none;
 }
 
-.pixel-actor {
-  font-size: 72px;
-  display: block;
-}
-
-.anim-dance .pixel-actor {
-  animation: pixel-dance 0.5s steps(2) infinite alternate;
-}
-
-@keyframes pixel-dance {
-  from { transform: translateY(0) scaleX(1); }
-  to { transform: translateY(-16px) scaleX(-1); }
-}
-
-.pixel-eq-bars {
-  display: flex;
-  gap: 4px;
-  justify-content: center;
-  margin-top: 10px;
-}
-
-.pixel-eq-bars span {
-  width: 6px;
-  height: 20px;
-  background: var(--yellow);
-  animation: eq-step 0.4s steps(4) infinite alternate;
-}
-
-.pixel-eq-bars span:nth-child(2) { animation-delay: 0.1s; }
-.pixel-eq-bars span:nth-child(3) { animation-delay: 0.2s; }
-.pixel-eq-bars span:nth-child(4) { animation-delay: 0.3s; }
-
-@keyframes eq-step {
-  from { height: 6px; }
-  to { height: 28px; }
-}
-
-.anim-cat .pixel-actor {
-  animation: cat-step 1.2s steps(2) infinite alternate;
-}
-
-@keyframes cat-step {
-  from { transform: scale(1); }
-  to { transform: scale(1.1); }
-}
-
-.pixel-z {
-  position: absolute;
+.caption-tag {
+  background: var(--pink-deep);
   color: var(--white);
-  font-size: 20px;
-  font-weight: 900;
-  animation: float-z-pixel 1.5s steps(6) infinite;
+  padding: 1px 4px;
+  font-size: 10px;
+  font-weight: 700;
 }
 
-.z2 { font-size: 16px; animation-delay: 0.5s; }
-
-@keyframes float-z-pixel {
-  0% { transform: translate(20px, 0); opacity: 0; }
-  50% { opacity: 1; }
-  100% { transform: translate(45px, -50px); opacity: 0; }
+.caption-text {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--white);
+  text-shadow: 1px 1px 0 var(--ink);
 }
 
-.pixel-sparkles,
-.pixel-hearts-float {
-  position: absolute;
-  color: var(--pink);
-  font-size: 20px;
-  margin-top: 50px;
-  animation: pixel-flash 0.5s steps(2) infinite;
+/* Video Animations */
+.anim-steam {
+  animation: steam-rise 2s linear infinite;
 }
 
-/* Retro Pixel TikTok Sidebar */
+@keyframes steam-rise {
+  0% { transform: translateY(0); opacity: 0.8; }
+  50% { opacity: 0.4; }
+  100% { transform: translateY(-16px); opacity: 0; }
+}
+
+.anim-chopsticks {
+  animation: chop-noodle 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes chop-noodle {
+  from { transform: translateY(0); }
+  to { transform: translateY(-14px); }
+}
+
+.anim-cat-bop {
+  animation: cat-groove 0.5s steps(2) infinite alternate;
+  transform-origin: 50% 100%;
+}
+
+@keyframes cat-groove {
+  from { transform: translateY(0) rotate(-2deg); }
+  to { transform: translateY(-6px) rotate(2deg); }
+}
+
+.anim-floating-beats {
+  animation: notes-float 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes notes-float {
+  from { transform: translateY(0); opacity: 0.7; }
+  to { transform: translateY(-8px); opacity: 1; }
+}
+
+.anim-pixel-dancer {
+  animation: dancer-bounce 0.4s steps(2) infinite alternate;
+}
+
+@keyframes dancer-bounce {
+  from { transform: translateY(0); }
+  to { transform: translateY(-8px); }
+}
+
+.anim-knife {
+  animation: knife-slice 1.2s steps(4) infinite;
+}
+
+@keyframes knife-slice {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-10px, 16px); }
+}
+
+.anim-falling-cubes {
+  animation: cubes-cascade 0.8s steps(2) infinite alternate;
+}
+
+@keyframes cubes-cascade {
+  from { transform: translateY(0); }
+  to { transform: translateY(4px); }
+}
+
+.anim-sparkle {
+  animation: sparkle-twinkle 1s steps(2) infinite alternate;
+}
+
+@keyframes sparkle-twinkle {
+  from { opacity: 0.4; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1.1); }
+}
+
+/* TikTok Sidebar */
 .pixel-tiktok-sidebar {
   position: absolute;
-  right: 10px;
-  bottom: 80px;
+  right: 8px;
+  bottom: 64px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
-  z-index: 20;
+  z-index: 25;
 }
 
 .pixel-side-btn {
-  background: var(--white);
-  color: var(--ink);
-  border: 2px solid var(--ink);
-  padding: 4px 6px;
+  background: none;
+  border: none;
   display: flex;
   flex-direction: column;
   align-items: center;
   cursor: pointer;
-  box-shadow: inset 0 -3px 0 #d8d4f0;
+  padding: 0;
+  color: var(--white);
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.8);
 }
 
-.pixel-side-btn:hover {
-  background: #ffd6e8;
-  box-shadow: inset 0 -3px 0 var(--pink);
-}
-
-.avatar-btn {
+.pixel-avatar-frame {
   position: relative;
-  padding: 2px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid var(--white);
+  overflow: hidden;
 }
 
-.pixel-avatar {
-  font-size: 24px;
-}
-
-.pixel-badge {
+.pixel-badge-plus {
   position: absolute;
   bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
   background: var(--pink-deep);
   color: var(--white);
   width: 14px;
   height: 14px;
+  border-radius: 50%;
   font-size: 11px;
+  font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--ink);
 }
 
-.pixel-btn-icon {
-  font-size: 20px;
+.pixel-btn-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s steps(2);
+}
+
+.pixel-btn-icon-wrap:active {
+  transform: scale(1.2);
 }
 
 .pixel-btn-count {
   font-size: 11px;
   font-weight: 700;
+  margin-top: 2px;
 }
 
-.liked {
-  background: #ffd6e8;
-  color: var(--pink-deep);
+.like-btn.liked .pixel-btn-count {
+  color: #ff0055;
 }
 
-.pixel-disc {
-  font-size: 24px;
-  animation: spin-step 2s steps(8) infinite;
+.spinning-vinyl-wrap {
+  position: relative;
+  width: 34px;
+  height: 34px;
 }
 
-@keyframes spin-step {
+.vinyl-disc-svg {
+  animation: spin-vinyl 3s linear infinite;
+}
+
+@keyframes spin-vinyl {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
-/* TikTok Info */
+.floating-music-notes {
+  position: absolute;
+  top: -12px;
+  right: 0;
+  display: flex;
+  gap: 4px;
+}
+
+.f-note {
+  color: var(--pink);
+  font-size: 12px;
+  font-weight: 900;
+  animation: f-note-rise 1.5s steps(3) infinite;
+}
+
+.f-note.n2 {
+  animation-delay: 0.75s;
+}
+
+@keyframes f-note-rise {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translate(-8px, -16px); opacity: 0; }
+}
+
+/* TikTok Info Overlay */
 .pixel-tiktok-info {
   position: absolute;
   left: 12px;
   right: 68px;
   bottom: 50px;
   color: var(--white);
-  z-index: 20;
+  z-index: 25;
   text-shadow: 2px 2px 0 var(--ink);
   pointer-events: none;
 }
 
+.pixel-author-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .pixel-author {
   font-size: 15px;
+  font-weight: 700;
   color: var(--yellow);
+}
+
+.pixel-verified-badge {
+  background: #38bdf8;
+  color: var(--ink);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 900;
 }
 
 .pixel-caption {
@@ -935,139 +1236,268 @@
 }
 
 .pixel-music-row {
-  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
   color: #cbd5e1;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
-/* Bottom Nav Bar */
+.music-note-icon {
+  color: var(--yellow);
+  animation: note-bob 0.8s steps(2) infinite alternate;
+}
+
+@keyframes note-bob {
+  from { transform: translateY(0); }
+  to { transform: translateY(-3px); }
+}
+
+/* Bottom Tab Bar */
 .pixel-bottom-nav {
   position: absolute;
-  bottom: 12px;
+  bottom: 8px;
   left: 0;
   right: 0;
-  height: 34px;
+  height: 38px;
   display: flex;
   justify-content: space-around;
   align-items: center;
-  color: #cbd5e1;
-  font-size: 12px;
-  background: var(--ink);
-  border-top: 2px solid var(--white);
-  z-index: 20;
+  background: #09090b;
+  border-top: 1px solid #27272a;
+  z-index: 30;
+  padding: 0 4px;
 }
 
-.active-tab {
-  color: var(--yellow);
+.nav-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
 }
 
-.nav-add {
-  background: var(--pink);
-  color: var(--ink);
-  padding: 0 6px;
-  border: 1px solid var(--white);
+.nav-label {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.active-tab .nav-label {
+  color: var(--white);
+  font-weight: 700;
+}
+
+/* TikTok 3D [+] Create Button */
+.nav-add-tab {
+  position: relative;
+  width: 38px;
+  height: 26px;
+}
+
+.tiktok-add-btn {
+  position: relative;
+  width: 38px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-cyan {
+  position: absolute;
+  left: 0;
+  width: 32px;
+  height: 24px;
+  background: #06b6d4;
+  border-radius: 6px;
+}
+
+.add-magenta {
+  position: absolute;
+  right: 0;
+  width: 32px;
+  height: 24px;
+  background: #ec4899;
+  border-radius: 6px;
+}
+
+.add-white {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  height: 24px;
+  background: #ffffff;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.add-plus {
+  color: #000000;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.inbox-icon-wrap {
+  position: relative;
+  display: flex;
+}
+
+.inbox-badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 900;
+  padding: 0 3px;
+  border-radius: 4px;
 }
 
 .pixel-home-bar {
   position: absolute;
-  bottom: 3px;
+  bottom: 2px;
   left: 50%;
   transform: translateX(-50%);
   width: 80px;
-  height: 4px;
+  height: 3px;
   background: var(--white);
-  z-index: 25;
+  border-radius: 2px;
+  z-index: 35;
 }
 
 /* ==========================================================================
-   Pixel Notification Banners (Stepped Pixel Windows)
+   Aesthetic Pixel Smartphone Notification Banners
    ========================================================================== */
 
 .pixel-notif-container {
   position: absolute;
-  top: 40px;
+  top: 36px;
   left: 8px;
   right: 8px;
-  z-index: 50;
+  z-index: 55;
   pointer-events: auto;
 }
 
-.pixel-notif-window {
+.aesthetic-pixel-banner {
   position: absolute;
   left: 0;
   right: 0;
-  padding: 8px 12px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
+  background: linear-gradient(135deg, rgba(28, 20, 64, 0.98), rgba(18, 12, 42, 0.98)) !important;
+  border: 2px solid var(--white);
+  box-shadow:
+    0 -3px 0 var(--white),
+    0 3px 0 var(--white),
+    -3px 0 0 var(--white),
+    3px 0 0 var(--white),
+    0 -6px 0 var(--ink),
+    0 6px 0 var(--ink),
+    -6px 0 0 var(--ink),
+    6px 0 0 var(--ink),
+    0 8px 16px rgba(0, 0, 0, 0.6) !important;
   touch-action: none;
   user-select: none;
   cursor: grab;
 }
 
-.pixel-notif-window.pixel-notif-dragging {
+.aesthetic-pixel-banner.banner-dragging {
   cursor: grabbing !important;
-  outline: 2px dashed var(--yellow);
+  border-color: var(--yellow) !important;
+  transform-origin: 50% 50%;
 }
 
-.pixel-notif-risky {
-  border-left: 6px solid var(--pink-deep);
+.banner-risky {
+  border-left: 6px solid var(--pink-deep) !important;
 }
 
-.pixel-notif-harmless {
-  border-left: 6px solid #4a4fc0;
+.banner-harmless {
+  border-left: 6px solid #38bdf8 !important;
 }
 
-.pixel-notif-header {
+.banner-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.banner-app-info {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.banner-app-icon {
+  display: flex;
+  align-items: center;
+}
+
+.banner-app-name {
   font-size: 12px;
-}
-
-.notif-badge-tag {
-  color: var(--yellow);
   font-weight: 700;
+  color: #38bdf8;
+  letter-spacing: 0.5px;
 }
 
-.notif-app-title {
-  color: var(--white);
+.banner-risky .banner-app-name {
+  color: var(--pink);
 }
 
-.notif-timestamp {
-  margin-left: auto;
-  color: #cbd5e1;
+.banner-time-tag {
+  color: #94a3b8;
   font-size: 11px;
 }
 
-.pixel-notif-content {
+.banner-content-row {
   display: flex;
   flex-direction: column;
   gap: 1px;
 }
 
-.notif-sender-text {
+.banner-sender-name {
   font-size: 14px;
+  font-weight: 700;
   color: var(--yellow);
   text-shadow: 1px 1px 0 var(--ink);
 }
 
-.notif-msg-text {
+.banner-text-snippet {
   font-size: 13px;
   color: var(--white);
   line-height: 1.3;
 }
 
-.pixel-handle-indicator {
-  font-size: 11px;
-  color: var(--yellow);
-  text-align: center;
+.banner-flick-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   margin-top: 4px;
+  color: var(--yellow);
+  font-size: 10px;
+  font-weight: 700;
   letter-spacing: 1px;
 }
 
+.flick-chevron {
+  animation: chevron-pulse 0.6s steps(2) infinite alternate;
+}
+
+@keyframes chevron-pulse {
+  from { transform: translateY(0); }
+  to { transform: translateY(-3px); }
+}
+
 /* ==========================================================================
-   Modals & Overlays (Classic Stepped Pixel Windows)
+   Modals & Overlays
    ========================================================================== */
 
 .stage3-modal-backdrop {
@@ -1081,7 +1511,6 @@
   padding: 20px;
 }
 
-/* Instruction Card */
 .instruction-card {
   max-width: 580px;
   width: 100%;
@@ -1114,41 +1543,48 @@
 }
 
 .instruction-demo {
-  background: var(--ink);
-  border: 3px dashed var(--yellow);
+  background: rgba(15, 10, 38, 0.6);
+  border: 2px dashed var(--white);
   padding: 16px;
   margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 
 .demo-banner {
   background: var(--window);
   border: 2px solid var(--white);
-  padding: 8px 14px;
-  display: inline-flex;
+  padding: 10px 16px;
+  display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   font-size: 15px;
+  font-weight: 700;
   color: var(--white);
-  animation: demo-flick 2s steps(4) infinite;
+  box-shadow: 0 4px 0 var(--ink);
 }
 
-@keyframes demo-flick {
-  0%, 60% { transform: translateY(0); opacity: 1; }
-  75% { transform: translateY(-28px); opacity: 0; }
-  76% { transform: translateY(0); opacity: 0; }
-  100% { transform: translateY(0); opacity: 1; }
+.demo-flick-arrow {
+  animation: demo-arrow-flick 0.8s steps(3) infinite;
+}
+
+@keyframes demo-arrow-flick {
+  0% { transform: translateY(0); opacity: 1; }
+  50% { transform: translateY(-8px); opacity: 1; }
+  100% { transform: translateY(-16px); opacity: 0; }
 }
 
 .demo-subtext {
   font-size: 14px;
   color: var(--yellow);
-  margin-top: 8px;
 }
 
 .instruction-rules-summary {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   margin-bottom: 24px;
   text-align: left;
 }
@@ -1156,248 +1592,282 @@
 .rule-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   font-size: 14px;
+  color: var(--white);
 }
 
 .rule-badge {
-  padding: 3px 8px;
+  padding: 2px 8px;
   font-size: 12px;
   font-weight: 700;
-  white-space: nowrap;
   border: 1px solid var(--ink);
+  min-width: 140px;
+  text-align: center;
 }
+
+.badge-safe { background: #10b981; color: var(--ink); }
+.badge-warning { background: #f59e0b; color: var(--ink); }
+.badge-danger { background: #ef4444; color: var(--white); }
 
 .instruction-countdown-box {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 16px;
 }
 
 .countdown-label {
   font-size: 14px;
-  color: var(--yellow);
+  color: #cbd5e1;
 }
 
 .countdown-number {
-  font-size: 56px;
+  font-size: 36px;
   font-weight: 900;
-  color: var(--pink);
-  text-shadow: 3px 3px 0 var(--ink);
-  line-height: 1;
+  color: var(--yellow);
+  text-shadow: 2px 2px 0 var(--ink);
+  min-width: 40px;
 }
 
 .skip-countdown-btn {
-  margin-top: 8px;
-  cursor: pointer;
-  padding: 8px 24px;
-  font-size: 16px;
+  padding: 6px 16px;
+  font-size: 15px;
 }
 
-/* Gag Failure Overlay */
+/* Gag Failure Impact Overlay */
 .stage3-gag-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(232, 72, 127, 0.85);
+  background: rgba(220, 38, 38, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
+  animation: gag-flash 0.3s steps(2) infinite;
+}
+
+@keyframes gag-flash {
+  50% { background: rgba(220, 38, 38, 0.7); }
 }
 
 .gag-impact-text {
+  background: var(--ink);
+  border: 4px solid var(--white);
+  box-shadow:
+    0 -4px 0 var(--pink-deep),
+    0 4px 0 var(--pink-deep),
+    -4px 0 0 var(--pink-deep),
+    4px 0 0 var(--pink-deep);
+  padding: 32px 48px;
   text-align: center;
-  color: var(--white);
-  text-shadow: 3px 3px 0 var(--ink);
 }
 
 .gag-impact-text h1 {
-  font-size: 52px;
+  font-size: 48px;
+  color: var(--yellow);
   margin-bottom: 8px;
-  letter-spacing: 2px;
+  text-shadow: 3px 3px 0 var(--pink-deep);
 }
 
 .gag-impact-text p {
-  font-size: 22px;
+  font-size: 20px;
+  color: var(--white);
   margin-bottom: 16px;
 }
 
 .gag-tries-remaining {
-  display: inline-block;
-  background: var(--ink);
-  color: var(--yellow);
-  border: 4px solid var(--white);
-  padding: 10px 24px;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
+  color: var(--pink);
 }
 
 /* Recap Modal */
 .recap-card {
-  max-width: 540px;
+  max-width: 600px;
   width: 100%;
   padding: 32px;
-  text-align: center;
 }
 
 .recap-intro {
-  margin: 12px 0 20px;
   font-size: 16px;
+  color: var(--white);
+  margin: 12px 0 20px;
 }
 
 .recap-tips-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  text-align: left;
+  gap: 12px;
   margin-bottom: 24px;
 }
 
 .recap-tip {
   display: flex;
   gap: 14px;
+  background: rgba(15, 10, 38, 0.6);
+  padding: 12px 16px;
+  border: 2px solid var(--window-light);
   align-items: flex-start;
-  background: rgba(28, 20, 64, 0.8);
-  padding: 10px 14px;
-  border: 2px solid var(--white);
 }
 
 .tip-num {
   background: var(--yellow);
   color: var(--ink);
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 900;
   flex-shrink: 0;
+  border: 2px solid var(--ink);
+}
+
+.recap-tip strong {
+  display: block;
+  font-size: 16px;
+  color: var(--yellow);
+  margin-bottom: 2px;
+}
+
+.recap-tip p {
+  font-size: 14px;
+  color: var(--white);
+  margin: 0;
 }
 
 .recap-actions {
   display: flex;
-  gap: 14px;
   justify-content: center;
+  gap: 16px;
 }
 
-/* Results / Clear Card */
+/* Stage Clear Results Screen */
 .results-card {
-  max-width: 560px;
+  max-width: 580px;
   width: 100%;
-  padding: 36px 28px;
+  padding: 36px 32px;
   text-align: center;
   position: relative;
 }
 
 .results-stamp-wrap {
-  margin-bottom: 12px;
+  position: absolute;
+  top: -24px;
+  right: 24px;
+  transform: rotate(14deg);
+  z-index: 10;
 }
 
 .results-grade-stamp {
   display: inline-block;
-  font-size: 76px;
+  font-size: 72px;
   font-weight: 900;
-  line-height: 1;
-  padding: 6px 24px;
-  border: 6px solid currentColor;
-  transform: rotate(-8deg);
-  text-shadow: 3px 3px 0 var(--ink);
-  animation: stamp-drop 0.3s steps(3);
+  padding: 4px 20px;
+  border: 6px solid var(--yellow);
+  color: var(--yellow);
+  background: var(--ink);
+  box-shadow: 4px 4px 0 var(--pink-deep);
+  animation: stamp-slam 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.25);
 }
 
-@keyframes stamp-drop {
-  0% { transform: scale(2) rotate(-20deg); opacity: 0; }
-  100% { transform: scale(1) rotate(-8deg); opacity: 1; }
+@keyframes stamp-slam {
+  from { transform: scale(2.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
-.stamp-S { color: var(--yellow); }
-.stamp-A { color: #86efac; }
-.stamp-B { color: #93c5fd; }
-.stamp-C { color: var(--pink); }
+.stamp-S { color: #facc15; border-color: #facc15; }
+.stamp-A { color: #4ade80; border-color: #4ade80; }
+.stamp-B { color: #38bdf8; border-color: #38bdf8; }
+.stamp-C { color: #f97316; border-color: #f97316; }
 
 .results-girlfriend-quote {
   font-size: 17px;
+  font-style: italic;
   color: var(--pink);
-  margin: 12px 0 24px;
+  margin: 16px 0 24px;
+  padding: 12px;
+  background: rgba(15, 10, 38, 0.6);
+  border: 2px dashed var(--white);
 }
 
 .results-stats-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .stat-box {
-  background: rgba(28, 20, 64, 0.85);
+  background: var(--ink);
   border: 2px solid var(--white);
-  padding: 10px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .stat-label {
-  font-size: 13px;
-  color: var(--yellow);
+  font-size: 12px;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
 }
 
 .stat-value {
   font-size: 22px;
   font-weight: 700;
+  color: var(--white);
 }
 
-.heart-bonus {
+.stat-hearts .stat-value {
   color: var(--pink);
+  text-shadow: 0 0 8px var(--pink-deep);
 }
 
 .results-grading-legend {
   display: flex;
   justify-content: space-around;
-  font-size: 13px;
-  color: #cbd5e1;
+  font-size: 12px;
+  color: #94a3b8;
   margin-bottom: 24px;
   padding: 8px;
-  background: var(--ink);
-  border: 2px solid var(--white);
+  background: rgba(15, 10, 38, 0.4);
 }
 
-.active-rank {
+.results-grading-legend .active-rank {
   color: var(--yellow);
   font-weight: 700;
+  text-decoration: underline;
 }
 
 .results-actions {
   display: flex;
-  gap: 16px;
   justify-content: center;
+  gap: 16px;
 }
 
-/* ==========================================================================
-   Dev Cheats Toolbar
-   ========================================================================== */
-
+/* Dev Cheats Panel */
 .dev-cheats-panel {
   margin-top: 16px;
-  padding: 12px 20px;
+  padding: 12px 16px;
   display: flex;
   align-items: center;
-  gap: 14px;
+  justify-content: space-between;
+  gap: 12px;
+  background: #110d29;
 }
 
 .dev-title {
   font-size: 14px;
   font-weight: 700;
   color: var(--yellow);
-  white-space: nowrap;
 }
 
 .dev-buttons {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .dev-pill {
@@ -1406,30 +1876,30 @@
   border: 2px solid var(--ink);
   padding: 4px 10px;
   font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
-  box-shadow: inset 0 -3px 0 #d8d4f0;
 }
 
 .dev-pill:hover {
-  background: #ffd6e8;
-  box-shadow: inset 0 -3px 0 var(--pink);
+  background: var(--yellow);
 }
 
 /* ==========================================================================
-   Responsive Adaptations
+   Responsive adjustments
    ========================================================================== */
 
-@media (max-width: 860px) {
+@media (max-width: 900px) {
   .stage3-viewport {
     grid-template-columns: 1fr;
     gap: 20px;
   }
 
-  .viewport-left {
-    height: 400px;
+  .aesthetic-bedside-scene {
+    height: 380px;
   }
 
-  .bedside-scene {
-    height: 400px;
+  .pixel-phone-case {
+    width: 290px;
+    height: 500px;
   }
 }

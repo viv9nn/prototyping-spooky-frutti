@@ -29,7 +29,7 @@ export default function GirlfriendGaze({
       if (subState === "PLAYER") {
         headRotation = -6;
         headTranslateX = -4;
-        statusText = "Miss Oishii: Looking at you 💕";
+        statusText = "Miss Oishii: Looking at you ♡";
       } else if (subState === "CEILING") {
         headRotation = -3;
         headTranslateX = -2;
@@ -37,7 +37,7 @@ export default function GirlfriendGaze({
       } else if (subState === "LAUGHING") {
         headRotation = -8;
         headTranslateX = -5;
-        statusText = "Miss Oishii: Giggling 😆";
+        statusText = "Miss Oishii: Giggling ♫";
       } else {
         headRotation = -2;
         headTranslateX = 0;
@@ -70,129 +70,164 @@ export default function GirlfriendGaze({
       headRotation = 24;
       headTranslateX = 20;
       statusBadgeClass = "badge-danger";
-      statusText = "MISS OISHII: CAUGHT! 💢";
+      statusText = "MISS OISHII: BUSTED! 💢";
       break;
   }
 
   return (
-    <div className="bedside-scene">
-      {/* Bedroom backdrop matching the restaurant scene in purple pixel art */}
-      <div className="bedroom-wall">
-        <div className="bedroom-night-window window">
-          <div className="city-skyline">
-            <span className="building b1" />
-            <span className="building b2" />
-            <span className="building b3" />
+    <div className="aesthetic-bedside-scene window">
+      {/* Bedroom Wallpaper with Purple Stripes (Matches Chapter 1 cafe palette) */}
+      <div className="bedroom-striped-wall">
+        {/* Cozy Night Window with Wooden Trim & Curtains */}
+        <div className="cozy-window-frame">
+          <div className="window-curtain curtain-l" />
+          <div className="window-curtain curtain-r" />
+          <div className="window-glass">
+            <div className="sky-stars">
+              <span className="p-star s1">✦</span>
+              <span className="p-star s2">✦</span>
+              <span className="p-star s3">✦</span>
+            </div>
+            <div className="pixel-crescent-moon" />
+            <div className="city-skyline-silhouette">
+              <span className="bld b1" />
+              <span className="bld b2" />
+              <span className="bld b3" />
+              <span className="bld b4" />
+            </div>
           </div>
-          <div className="crescent-moon" />
-          <div className="star s1">✦</div>
-          <div className="star s2">✦</div>
         </div>
-        <div className="wall-lamp">
-          <div className="lamp-shade" />
-          <div className="lamp-glow" />
+
+        {/* Cozy Nightstand with Glowing Brass Bedside Lamp */}
+        <div className="nightstand-table">
+          <div className="bedside-lamp">
+            <div className="lamp-shade-retro" />
+            <div className="lamp-bulb-glow" />
+            <div className="lamp-stand-brass" />
+          </div>
+          <div className="nightstand-drawer" />
         </div>
       </div>
 
-      {/* Bed Mattress & Pillows */}
-      <div className="bed-mattress">
-        <div className="pillow pillow-left window" />
-        <div className="pillow pillow-right window" />
+      {/* Warm Wooden Bed Headboard */}
+      <div className="wooden-headboard">
+        <div className="headboard-slat" />
+        <div className="headboard-slat" />
+        <div className="headboard-slat" />
+        <div className="headboard-slat" />
       </div>
 
-      {/* Exact Pixel-Art Characters in Bed */}
-      <div className="couple-container">
+      {/* Fluffy White/Cream Pillows Behind Heads */}
+      <div className="pillows-row">
+        <div className="fluffy-pillow pillow-oishii">
+          <div className="pillow-crease" />
+        </div>
+        <div className="fluffy-pillow pillow-apple">
+          <div className="pillow-crease" />
+        </div>
+      </div>
+
+      {/* Characters in Bed */}
+      <div className="bed-characters-layer">
         {/* Miss Oishii (Strawberry Girlfriend) */}
         <div
-          className={`girlfriend-character state-${gazeState.toLowerCase()}`}
+          className={`oishii-bed-sprite state-${gazeState.toLowerCase()}`}
           style={{
             transform: `translate(${headTranslateX}px, 0) rotate(${headRotation}deg)`,
           }}
         >
-          {/* Miss Oishii Head Sprite */}
-          <div className="oishii-sprite-box">
+          <div className="sprite-anchor">
             <Image
               src="/stage-3/miss-oishii-sprite.png"
               alt="Miss Oishii"
-              width={220}
-              height={208}
+              width={200}
+              height={190}
               unoptimized
               priority
-              className="pixel-sprite oishii-sprite-img"
+              className="pixel-sprite"
             />
 
-            {/* Expression Overlays for State Changes */}
+            {/* Rosy Pixel Blush on Cheeks */}
+            <div className="oishii-blush-marks">
+              <span className="blush-mark blush-l">{"///"}</span>
+              <span className="blush-mark blush-r">{"///"}</span>
+            </div>
+
+            {/* Expression Overlays */}
             {gazeState === "NOT_LOOKING" && subState === "LAUGHING" && (
-              <div className="laughing-eyes-overlay">
-                <span className="laugh-eye-l">&gt;</span>
-                <span className="laugh-eye-r">&lt;</span>
+              <div className="pixel-overlay-eyes">
+                <span className="p-eye-l">&gt;</span>
+                <span className="p-eye-r">&lt;</span>
               </div>
             )}
 
             {gazeState === "NOT_LOOKING" && subState === "YAWNING" && (
-              <div className="yawn-mouth-overlay">
+              <div className="pixel-overlay-mouth">
                 <span>o</span>
               </div>
             )}
 
             {gazeState === "LOOKING" && (
-              <div className="laser-beam-indicator">
-                <span className="laser-flash">⚡</span>
+              <div className="pixel-laser-indicator">
+                <span className="laser-beam-spark">⚡</span>
               </div>
             )}
 
             {gazeState === "SNATCH" && (
-              <div className="anger-vein-overlay">
+              <div className="pixel-anger-indicator">
                 <span>💢</span>
               </div>
             )}
           </div>
 
-          {/* Tell Warning Indicator */}
+          {/* Tell Warning Bubble */}
           {gazeState === "TELL" && (
-            <div className="tell-alert-bubble window">
-              <span className="tell-icon">👀 ❓</span>
+            <div className="pixel-tell-popup window">
+              <span className="popup-icon">! ❓</span>
             </div>
           )}
 
-          {/* Fakeout Indicator */}
+          {/* Fakeout Bubble */}
           {gazeState === "FAKEOUT" && (
-            <div className="fakeout-bubble window">
-              <span className="fakeout-icon">...😴</span>
+            <div className="pixel-fakeout-popup window">
+              <span>...😴</span>
             </div>
           )}
-
-          {/* Blue Nightwear Pajamas in Bed */}
-          <div className="pajamas-body-oishii" />
         </div>
 
-        {/* Apple Boyfriend (Player holding phone) */}
-        <div className="player-character">
-          <div className="apple-sprite-box">
+        {/* Mr. Honeycrisp Apple (Boyfriend Holding Phone in Bed) */}
+        <div className="apple-bed-sprite">
+          <div className="sprite-anchor">
             <Image
               src="/stage-3/apple-boyfriend-sprite.png"
               alt="Apple Boyfriend"
-              width={220}
-              height={208}
+              width={200}
+              height={190}
               unoptimized
               priority
-              className="pixel-sprite apple-sprite-img"
+              className="pixel-sprite"
             />
-            <div className="player-sweat-drop">💧</div>
+            {/* Nervous sweat drop when girlfriend looks */}
+            {(gazeState === "TELL" || gazeState === "LOOKING") && (
+              <div className="apple-sweat-drop">💧</div>
+            )}
           </div>
-          {/* Khaki Nightwear Pajamas in Bed */}
-          <div className="pajamas-body-apple" />
         </div>
       </div>
 
-      {/* Bed Blanket covering them in purple/pink pixel styling */}
-      <div className="bed-duvet">
-        <div className="duvet-pink-fold" />
+      {/* Cozy Quilted Duvet Blanket (Tucks them in bed) */}
+      <div className="cozy-duvet-blanket">
+        <div className="duvet-pink-folded-sheet">
+          <span className="stitch-line" />
+        </div>
+        <div className="duvet-quilt-body">
+          <div className="quilt-diamond-pattern" />
+        </div>
       </div>
 
-      {/* Classic Spooky Frutti Visual Novel Dialogue Box */}
+      {/* Miss Oishii Speech Reaction (Classic VN Dialogue Box with Nameplate) */}
       {speechBubble && (
-        <div className="vn-message window stage3-speech-dialogue" role="alert">
+        <div className="vn-message window stage3-oishii-dialogue" role="alert">
           <p className="vn-nameplate">Miss Oishii</p>
           <p className="vn-dialogue-text">{speechBubble}</p>
           <span className="vn-next" aria-hidden="true">
@@ -201,10 +236,10 @@ export default function GirlfriendGaze({
         </div>
       )}
 
-      {/* Gaze Status Pill in Pixel Window Style */}
-      <div className={`gaze-status-indicator window ${statusBadgeClass}`}>
-        <span className="status-dot" />
-        <span className="status-label">{statusText}</span>
+      {/* Aesthetic Gaze Status Pill (Top Header) */}
+      <div className={`aesthetic-gaze-pill window ${statusBadgeClass}`}>
+        <span className="gaze-dot-icon" />
+        <span className="gaze-status-title">{statusText}</span>
       </div>
     </div>
   );
