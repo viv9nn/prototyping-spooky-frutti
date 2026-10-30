@@ -988,6 +988,7 @@ main {
   }
 
   .flying-arena {
+    flex: none;
     height: 300px;
   }
 
