@@ -1,22 +1,31 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 import styles from "./cafe.module.css";
+
+// Score: the date starts perfect and every slip-up costs points.
+const STARTING_SCORE = 100;
+const FART_COST = 15;
+const IGNORE_COST = 10;
 
 // All positions are fractions of the bar's height, measured from the top.
 const SAFE_ZONE_HEIGHT = 0.24;
 const SAFE_ZONE_START = 0.38;
 const SAFE_ZONE_EDGE = 0.04; // the zone never gets closer than this to either end of the bar
-// After each success the zone moves, and moves further the higher the score is.
-const SHIFT_AT_START = 0.06;
-const SHIFT_PER_SUCCESS = 0.02;
 const MARKER_HEIGHT = 0.05;
-const SWEEP_SECONDS = 1.4; // one full trip up and back down
-const POINTS_PER_TRY = 10; // gained on a success, lost on a failure
-const WINNING_SCORE = 100;
-const LOSING_SCORE = -30;
-const PAUSE_BETWEEN_LINES_MS = 2000;
-const COUNTDOWN_SECONDS = 10; // how long she waits for the player to press A
+
+// Pressure: it builds on its own, and at full the fart comes out no matter what.
+const STARTING_PRESSURE = 0.2;
+const RELIEF_PER_HOLD = 0.45;
+const PRESSURE_AFTER_FART = 0.3;
+
+// Everything gets harder with each line of the conversation.
+const zoneShift = (line: number) => 0.06 + 0.02 * line; // how far the zone moves after a hold
+const sweepSeconds = (line: number) => 1.4 - 0.04 * line; // one full trip up and back down
+const secondsToFullPressure = (line: number) => 6 - 0.3 * line;
+const secondsToAnswer = (line: number) => 10 - 0.5 * line; // how long she waits for the player to press A
+const secondsBetweenLines = (line: number) => 2 - 0.08 * line;
+
 const NUDGE = "...Hello? Are you listening to me?";
 
 const monologue = [
@@ -37,8 +46,8 @@ function inSafeZone(markerTop: number, zoneTop: number) {
   return center >= zoneTop && center <= zoneTop + SAFE_ZONE_HEIGHT;
 }
 
-function shiftSafeZone(zoneTop: number, score: number) {
-  const shift = SHIFT_AT_START + (SHIFT_PER_SUCCESS * Math.max(0, score)) / POINTS_PER_TRY;
+function shiftSafeZone(zoneTop: number, line: number) {
+  const shift = zoneShift(line);
   const moved = zoneTop + (Math.random() < 0.5 ? shift : -shift);
   const fits = moved >= SAFE_ZONE_EDGE && moved <= 1 - SAFE_ZONE_HEIGHT - SAFE_ZONE_EDGE;
   return fits ? moved : zoneTop + (zoneTop < moved ? -shift : shift);
@@ -46,78 +55,109 @@ function shiftSafeZone(zoneTop: number, score: number) {
 
 type HoldGameProps = {
   onFart: () => void;
-  onEnd: (ending: "success" | "failure") => void;
+  onTalking: (talking: boolean) => void;
+  onEnd: (score: number) => void; // called with the final score, from 0 to 100
 };
 
-export default function HoldGame({ onFart, onEnd }: HoldGameProps) {
-  const [score, setScore] = useState(0);
+export default function HoldGame({ onFart, onTalking, onEnd }: HoldGameProps) {
+  const [score, setScore] = useState(STARTING_SCORE);
   const [zoneTop, setZoneTop] = useState(SAFE_ZONE_START);
   const [line, setLine] = useState(0);
   const [talking, setTalking] = useState(false);
   const [timesIgnored, setTimesIgnored] = useState(0);
-  const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_SECONDS);
+  const [secondsLeft, setSecondsLeft] = useState(secondsToAnswer(0));
   const marker = useRef<HTMLDivElement>(null);
+  const pressureFill = useRef<HTMLDivElement>(null);
   const markerTop = useRef(0);
+  const sweep = useRef(0); // the marker's progress through its trip, from 0 to 1
+  const pressure = useRef(STARTING_PRESSURE);
 
+  function lose(points: number) {
+    setScore((current) => Math.max(0, current - points));
+  }
+
+  // One loop runs the marker, the pressure, and her clock, so they all pause together
+  // if the tab is in the background. It restarts with each line and each change of turn.
   useEffect(() => {
     let frame = 0;
-    const start = performance.now();
+    let last = performance.now();
+    let wait = talking ? secondsToAnswer(line) : secondsBetweenLines(line);
 
-    function move(now: number) {
-      const progress = ((now - start) / 1000 / SWEEP_SECONDS) % 1;
-      const distance = 1 - Math.abs(progress * 2 - 1);
+    function tick(now: number) {
+      const elapsed = Math.min((now - last) / 1000, 0.1);
+      last = now;
+
+      sweep.current = (sweep.current + elapsed / sweepSeconds(line)) % 1;
+      const distance = 1 - Math.abs(sweep.current * 2 - 1);
       // Snapping to whole steps keeps the movement chunky, like the art.
       markerTop.current = (Math.round(distance * 40) / 40) * (1 - MARKER_HEIGHT);
       if (marker.current) marker.current.style.top = `${markerTop.current * 100}%`;
-      frame = requestAnimationFrame(move);
+
+      pressure.current += elapsed / secondsToFullPressure(line);
+      if (pressure.current >= 1) {
+        pressure.current = PRESSURE_AFTER_FART;
+        setScore((current) => Math.max(0, current - FART_COST));
+        onFart();
+      }
+      if (pressureFill.current) {
+        pressureFill.current.style.height = `${pressure.current * 100}%`;
+        pressureFill.current.dataset.danger = String(pressure.current > 0.7);
+      }
+
+      wait -= elapsed;
+      if (talking) {
+        setSecondsLeft(Math.ceil(wait));
+        if (wait <= 0) {
+          setScore((current) => Math.max(0, current - IGNORE_COST));
+          setTimesIgnored((count) => count + 1);
+          wait = secondsToAnswer(line);
+        }
+      } else if (wait <= 0) {
+        setTalking(true);
+        return;
+      }
+      frame = requestAnimationFrame(tick);
     }
 
-    frame = requestAnimationFrame(move);
+    frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, []);
-
-  // Between lines this waits for her to speak; during a line it waits for the player to press A.
-  useEffect(() => {
-    if (line >= monologue.length) return;
-    const timer = talking
-      ? setTimeout(() => {
-          if (secondsLeft > 1) {
-            setSecondsLeft(secondsLeft - 1);
-            return;
-          }
-          setScore((current) => current - POINTS_PER_TRY);
-          setTimesIgnored((count) => count + 1);
-          setSecondsLeft(COUNTDOWN_SECONDS);
-        }, 1000)
-      : setTimeout(() => setTalking(true), PAUSE_BETWEEN_LINES_MS);
-    return () => clearTimeout(timer);
-  }, [line, talking, secondsLeft]);
+  }, [line, talking, onFart]);
 
   useEffect(() => {
-    if (score >= WINNING_SCORE) onEnd("success");
-    if (score <= LOSING_SCORE) onEnd("failure");
-  }, [score, onEnd]);
+    onTalking(talking);
+  }, [talking, onTalking]);
+
+  // The date ends when the conversation does, or sooner if it's going terribly.
+  useEffect(() => {
+    if (score <= 0 || line >= monologue.length) onEnd(score);
+  }, [score, line, onEnd]);
 
   function continueTalking() {
     if (!talking) return;
     setTalking(false);
     setTimesIgnored(0);
-    setSecondsLeft(COUNTDOWN_SECONDS);
     setLine((current) => current + 1);
   }
 
   function attemptHold() {
-    const held = inSafeZone(markerTop.current, zoneTop);
-    const nextScore = held ? score + POINTS_PER_TRY : score - POINTS_PER_TRY;
-    setScore((current) => current + (held ? POINTS_PER_TRY : -POINTS_PER_TRY));
-    if (held) setZoneTop(shiftSafeZone(zoneTop, nextScore));
-    else onFart();
+    if (inSafeZone(markerTop.current, zoneTop)) {
+      pressure.current = Math.max(0, pressure.current - RELIEF_PER_HOLD);
+      setZoneTop(shiftSafeZone(zoneTop, line));
+    } else {
+      pressure.current = PRESSURE_AFTER_FART;
+      lose(FART_COST);
+      onFart();
+    }
   }
 
-  // Runs every render so the listener always calls the latest attemptHold.
+  function onScenePointerDown(event: PointerEvent) {
+    if (event.button === 0) attemptHold();
+  }
+
+  // Runs every render so the listener always calls the latest handlers.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.repeat) return;
+      if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
       if (event.code === "KeyA") continueTalking();
       if (event.code === "Space") {
         event.preventDefault(); // stops the page from scrolling
@@ -132,7 +172,10 @@ export default function HoldGame({ onFart, onEnd }: HoldGameProps) {
   return (
     <>
       {/* Tapping the scene does the same as Space, so the game also works on phones. */}
-      <div className={styles.gameLayer} onPointerDown={attemptHold}>
+      <div className={styles.gameLayer} onPointerDown={onScenePointerDown}>
+        <div className={styles.pressure} role="img" aria-label="How close the fart is to coming out">
+          <div ref={pressureFill} className={styles.pressureFill} />
+        </div>
         <div
           className={styles.bar}
           role="img"
