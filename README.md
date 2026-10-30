@@ -95,6 +95,8 @@ import { addMoney } from "@/lib/wallet";
 addMoney(250); // false, and changes nothing, if the amount isn't a positive whole number
 ```
 
+The game itself is a plain HTML file, `public/games/side-hustle/index.html`, shown in a frame by `app/chapters/job/OddJobsGame.tsx`. One heart buys a night of 3 hustles. Each hustle's `rate` and the `SCORE_TARGET` constant in that file set what it pays and scores.
+
 ## Building the finale
 
 Wrap The Proposal in `ChapterGate` with `slug="proposal"`. It costs no hearts and keeps players out until chapters 1 to 4 all have a score.

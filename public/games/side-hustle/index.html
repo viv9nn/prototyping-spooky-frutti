@@ -1,0 +1,1641 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Odd Jobs</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one 320x180 screen in the Spooky Frutti Arcade palette, touch pad below it on phones. */
+:root {
+  color-scheme: dark;
+  --ink: #1c1440;
+  --window: #24287e;
+  --white: #fdfbff;
+  --pink: #ff8fc0;
+  --pink-deep: #e8487f;
+  --yellow: #ffe680;
+  --mono: "DotGothic16", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+html, body { height: 100%; }
+body {
+  background: conic-gradient(#2a2058 25%, #231a4c 0 50%, #2a2058 0 75%, #231a4c 0) 0 0 / 32px 32px;
+  color: var(--white);
+  font-family: var(--mono);
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding-block: 8px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+#screen {
+  display: block;
+  max-width: 100%;
+  background: #000;
+  outline: 4px solid var(--white);
+  touch-action: none;
+  cursor: pointer;
+}
+#screen:focus-visible { outline-color: var(--yellow); }
+.embed #help { display: none; }
+.embed #screen { outline: 0; }
+.embed body { padding: 0; gap: 0; }
+#help { color: var(--white); text-align: center; margin: 0; }
+#help kbd { font: inherit; color: var(--yellow); }
+#pad { display: none; width: 100%; max-width: 420px; justify-content: space-between; align-items: center; gap: 12px; }
+#dpad { display: grid; grid-template-columns: repeat(3, 56px); grid-template-rows: repeat(3, 48px); gap: 4px; }
+#pad button {
+  font: 700 18px var(--mono);
+  color: var(--white);
+  background: var(--window);
+  border: 0;
+  border-radius: 0;
+  box-shadow: inset -3px -3px 0 rgba(0,0,0,.35), inset 3px 3px 0 rgba(255,255,255,.1);
+  touch-action: none;
+}
+#pad button.on { background: var(--pink-deep); }
+#pad button:focus-visible { outline: 2px solid var(--yellow); }
+#ba { width: 96px; height: 96px; border-radius: 50% !important; background: var(--pink-deep) !important; color: var(--white) !important; }
+@media (pointer: coarse) {
+  #pad { display: flex; }
+  #help { display: none; }
+}
+</style>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
+<canvas id="screen" width="1280" height="720" tabindex="0" aria-label="Odd Jobs game screen"></canvas>
+<p id="help"><kbd>Arrows</kbd> or <kbd>WASD</kbd> move &nbsp; <kbd>Space</kbd> act &nbsp; <kbd>P</kbd> pause &nbsp; <kbd>M</kbd> mute</p>
+<div id="pad" aria-label="Touch controls">
+  <div id="dpad">
+    <span></span><button data-k="up" aria-label="Up">&#9650;</button><span></span>
+    <button data-k="left" aria-label="Left">&#9664;</button><button data-k="down" aria-label="Down">&#9660;</button><button data-k="right" aria-label="Right">&#9654;</button>
+  </div>
+  <button id="ba" data-k="a">GO</button>
+</div>
+
+<script>
+'use strict';
+/* ------------------------------------------------------------------ core */
+const W = 320, H = 180;
+const cv = document.getElementById('screen');
+const g = cv.getContext('2d');
+const SCALE = cv.width / W;
+g.imageSmoothingEnabled = false;
+g.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+const embedded = new URLSearchParams(location.search).has('embed');
+if (embedded) document.documentElement.classList.add('embed');
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function fit() {
+  const coarse = getComputedStyle(document.getElementById('pad')).display !== 'none';
+  const pad = coarse ? 190 : embedded ? 0 : 44;
+  const aw = Math.max(160, innerWidth - (embedded ? 0 : 40)), ah = Math.max(90, innerHeight - pad);
+  let s = Math.min(aw / W, ah / H);
+  if (s >= 2 && !embedded) s = Math.floor(s);
+  cv.style.width = Math.round(W * s) + 'px';
+  cv.style.height = Math.round(H * s) + 'px';
+}
+addEventListener('resize', fit); fit();
+
+const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const money = n => '$' + Math.max(0, Math.round(n)).toLocaleString('en-US');
+function seeded(s) { return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+function layer(draw, w = W, h = H) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+  const r = (a, b, d, e, f) => { x.fillStyle = f; x.fillRect(a | 0, b | 0, d | 0, e | 0); };
+  draw(r, x); return c;
+}
+
+/* ---------------------------------------------------------------- text, in the site's font */
+const FONT = '"DotGothic16", ui-monospace, Menlo, Consolas, monospace';
+const ARROWS = { '<': '\u25C0', '>': '\u25B6', '^': '\u25B2', '_': '\u25BC' };
+const label = s => String(s).toLowerCase().replace(/(^|[.!?:♥]\s+)(\p{L})/gu, (m, a, b) => a + b.toUpperCase()).replace(/[<>^_]/g, c => ARROWS[c]);
+function tw(s, sc = 1) { g.font = 8 * sc + 'px ' + FONT; return g.measureText(label(s)).width; }
+function text(s, x, y, c = '#fff', o = {}) {
+  const sc = o.s || 1, str = label(s);
+  g.font = 8 * sc + 'px ' + FONT; g.textBaseline = 'top';
+  if (o.c) x -= g.measureText(str).width / 2; else if (o.r) x -= g.measureText(str).width;
+  x = Math.round(x); y = Math.round(y - 1.5 * sc);
+  if (o.sh) { g.fillStyle = o.sh; g.fillText(str, x + .5 * sc, y + .5 * sc); }
+  g.fillStyle = c; g.fillText(str, x, y);
+}
+if (document.fonts) document.fonts.load('32px "DotGothic16"');
+function wrap(s, maxw) {
+  const out = []; let line = '';
+  for (const w of s.split(' ')) {
+    const t = line ? line + ' ' + w : w;
+    if (tw(t) > maxw) { out.push(line); line = w; } else line = t;
+  }
+  if (line) out.push(line);
+  return out;
+}
+
+/* ---------------------------------------------------------------- input */
+const held = {}, hit = {};
+const KEYMAP = {
+  ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down',ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',
+  Space:'a',Enter:'a',KeyP:'p',Escape:'q',KeyQ:'q',KeyM:'m',KeyR:'r'
+};
+addEventListener('keydown', e => {
+  const k = KEYMAP[e.code]; if (!k) return;
+  e.preventDefault(); audioOn();
+  if (!e.repeat) { held[k] = true; hit[k] = true; }
+});
+addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) held[k] = false; });
+addEventListener('blur', () => { for (const k in held) held[k] = false; if (scene && scene.onBlur) scene.onBlur(); });
+document.querySelectorAll('#pad button').forEach(b => {
+  const k = b.dataset.k;
+  b.addEventListener('pointerdown', e => { e.preventDefault(); audioOn(); held[k] = true; hit[k] = true; b.classList.add('on'); });
+  const up = () => { held[k] = false; b.classList.remove('on'); };
+  b.addEventListener('pointerup', up); b.addEventListener('pointerleave', up); b.addEventListener('pointercancel', up);
+});
+let mouse = null;
+function toScreen(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height }; }
+cv.addEventListener('pointerdown', e => { audioOn(); cv.focus(); mouse = toScreen(e); });
+
+/* ---------------------------------------------------------------- audio */
+let ac = null, muted = false, musicStep = 0, nextNote = 0, master = null;
+function audioOn() {
+  if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
+  const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+  try {
+    ac = new C(); master = ac.createGain(); master.gain.value = muted ? 0 : .5; master.connect(ac.destination);
+    nextNote = ac.currentTime + .05; setInterval(schedule, 30);
+  } catch (e) { ac = null; }
+}
+function tone(f, d, type = 'square', v = .12, when = 0, slide = 0) {
+  if (!ac) return;
+  const t = ac.currentTime + when, o = ac.createOscillator(), a = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, f + slide), t + d);
+  a.gain.setValueAtTime(v, t); a.gain.exponentialRampToValueAtTime(.001, t + d);
+  o.connect(a); a.connect(master); o.start(t); o.stop(t + d + .02);
+}
+let noiseBuf = null;
+function noise(d, v = .1, when = 0, hp = 1000) {
+  if (!ac) return;
+  if (!noiseBuf) { noiseBuf = ac.createBuffer(1, ac.sampleRate * .5, ac.sampleRate); const n = noiseBuf.getChannelData(0); for (let i = 0; i < n.length; i++) n[i] = Math.random() * 2 - 1; }
+  const s = ac.createBufferSource(), a = ac.createGain(), f = ac.createBiquadFilter(), t = ac.currentTime + when;
+  s.buffer = noiseBuf; f.type = 'highpass'; f.frequency.value = hp;
+  a.gain.setValueAtTime(v, t); a.gain.exponentialRampToValueAtTime(.001, t + d);
+  s.connect(f); f.connect(a); a.connect(master); s.start(t); s.stop(t + d + .02);
+}
+const SFX = {
+  move: () => tone(420, .05, 'square', .06),
+  ok: () => { tone(660, .06); tone(990, .08, 'square', .1, .05); },
+  coin: () => { tone(988, .05, 'square', .09); tone(1319, .12, 'square', .09, .05); },
+  bad: () => tone(170, .22, 'sawtooth', .16, 0, -90),
+  whack: () => { noise(.1, .22, 0, 400); tone(140, .1, 'square', .14, 0, -70); },
+  click: () => { noise(.03, .2, 0, 3000); tone(1800, .03, 'square', .06); },
+  siren: () => { for (let i = 0; i < 3; i++) { tone(700, .14, 'square', .07, i * .28, 400); tone(1100, .14, 'square', .07, i * .28 + .14, -400); } },
+  bust: () => { tone(440, .16, 'sawtooth', .16, 0); tone(370, .16, 'sawtooth', .16, .16); tone(311, .16, 'sawtooth', .16, .32); tone(220, .5, 'sawtooth', .18, .48, -100); },
+  win: () => [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, .14, 'square', .12, i * .08)),
+  go: () => tone(880, .22, 'square', .12),
+  tick: () => tone(520, .08, 'square', .1),
+  crash: () => { noise(.3, .3, 0, 200); tone(90, .3, 'sawtooth', .18, 0, -40); },
+  shred: () => { noise(.14, .14, 0, 2000); }
+};
+const sfx = n => { if (ac && !muted) SFX[n](); };
+/* The backing track: an original 90s-style boom-bap loop in D minor, one chord per bar.
+   To use a licensed recording instead, set BACKING_TRACK to its path next to this file. */
+const BACKING_TRACK = null;
+const BPM = 92, SWING = .2;
+const CHORDS = [[50, 53, 57, 60], [46, 50, 53, 57], [43, 46, 50, 53], [45, 49, 52, 55]];
+const KICK = [0, 7, 10], SNARE = [4, 12], BASS = [0, 3, 6, 10, 11], STAB = [2, 9, 14];
+const HOOK = { 32: 69, 35: 72, 38: 74, 42: 72, 44: 69, 48: 65, 51: 67, 54: 69, 58: 64 };
+const midi = n => 440 * Math.pow(2, (n - 69) / 12);
+let trackEl = null;
+function schedule() {
+  if (!ac || muted || paused()) { if (ac) nextNote = Math.max(nextNote, ac.currentTime); if (trackEl) trackEl.pause(); return; }
+  if (BACKING_TRACK) { if (!trackEl) { trackEl = new Audio(BACKING_TRACK); trackEl.loop = true; trackEl.volume = .6; } if (trackEl.paused) trackEl.play().catch(() => {}); return; }
+  const spb = 60 / BPM / 4;
+  while (nextNote < ac.currentTime + .12) {
+    const i = musicStep % 64, st = i % 16, ch = CHORDS[i >> 4], at = Math.max(0, nextNote - ac.currentTime) + (i % 2 ? spb * SWING : 0);
+    if (KICK.includes(st)) tone(115, .2, 'sine', .42, at, -70);
+    if (SNARE.includes(st)) { noise(.15, .17, at, 1400); tone(185, .08, 'triangle', .1, at); }
+    if (st % 2 === 0) noise(.03, st === 14 ? .05 : .03, at, 7000);
+    if (BASS.includes(st)) tone(midi(ch[0] - 12), spb * 1.8, 'triangle', .3, at);
+    if (STAB.includes(st)) ch.slice(1).forEach(n => { tone(midi(n + 12), .2, 'triangle', .045, at); tone(midi(n + 12) * 1.004, .14, 'square', .009, at); });
+    if (HOOK[i]) tone(midi(HOOK[i]), spb * 2.4, 'triangle', .06, at);
+    musicStep++; nextNote += spb;
+  }
+}
+const paused = () => scene && scene.isPaused && scene.isPaused();
+
+/* ---------------------------------------------------------------- save */
+/* Money is shared with the site. On the site, changes go to lib/wallet.ts through the
+   frame's parent; the site's storage events bring the saved value back here. */
+const MONEY_KEY = 'arcade-money';
+let cash = null;
+const toSite = msg => parent.postMessage(msg, location.origin);
+function getMoney() {
+  if (cash === null) {
+    let saved = 0;
+    try { saved = Number(localStorage.getItem(MONEY_KEY)); } catch (e) {}
+    cash = Number.isSafeInteger(saved) && saved >= 0 ? saved : 0;
+  }
+  return cash;
+}
+function setMoney(n) {
+  const next = Math.max(0, Math.round(n)), amount = next - getMoney();
+  cash = next;
+  if (embedded) { if (amount) toSite({ type: 'money', amount }); return; }
+  try { localStorage.setItem(MONEY_KEY, String(next)); } catch (e) {}
+}
+function addMoney(n) { if (n > 0) setMoney(getMoney() + Math.round(n)); }
+function spendMoney(n) { if (n > getMoney()) return false; if (n > 0) setMoney(getMoney() - n); return true; }
+addEventListener('storage', e => { if (e.key === MONEY_KEY || e.key === null) cash = null; });
+
+const SAVE_KEY = 'spooky-frutti-v2';
+let save = { rep: {}, best: {}, busts: 0 };
+try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s) save = Object.assign(save, s); } catch (e) {}
+function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
+
+/* ---------------------------------------------------------------- effects */
+let floats = [], parts = [], shake = 0, flash = 0, flashCol = '#fff';
+function pop(txt, x, y, c = '#ffe680') { floats.push({ txt, x, y, c, t: 1 }); }
+function burst(x, y, n, cols, sp = 60) {
+  for (let i = 0; i < n; i++) parts.push({ x, y, vx: rand(-sp, sp), vy: rand(-sp * 1.3, sp * .2), c: pick(cols), t: rand(.3, .8) });
+}
+const coins = (x, y, n = 8) => burst(x, y, n, ['#ffe680', '#ffb52e', '#7fe07a']);
+function bump(a = 3) { if (!reduced) shake = Math.max(shake, a); }
+function flashOn(c, a = .5) { if (!reduced) { flash = a; flashCol = c; } }
+function fxUpdate(dt) {
+  floats = floats.filter(f => (f.t -= dt * .9) > 0); floats.forEach(f => f.y -= dt * 24);
+  parts = parts.filter(p => (p.t -= dt) > 0); parts.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 180 * dt; });
+  shake = Math.max(0, shake - dt * 12); flash = Math.max(0, flash - dt * 2);
+}
+function fxDraw() {
+  parts.forEach(p => R(p.x, p.y, 2, 2, p.c));
+  floats.forEach(f => { const hw = tw(f.txt) / 2 + 2; text(f.txt, clamp(f.x, hw, W - hw), f.y, f.c, { c: 1, sh: '#000' }); });
+}
+
+/* ---------------------------------------------------------------- sprites */
+function sprite(rows, pal) {
+  return layer(r => rows.forEach((row, y) => { for (let x = 0; x < row.length; x++) { const c = pal[row[x]]; if (c) r(x, y, 1, 1, c); } }), rows[0].length, rows.length);
+}
+const OUT = '#2a0612';
+const HEAD_PAL = { K: OUT, r: '#ad2c4a', d: '#8e1a38', l: '#d4627a', h: '#f0a0b0', S: '#f4ecd8', E: '#2a0612', n: '#6e4a24', m: '#2a0612', B: '#46081f', g: '#4fa877', G: '#2f7a58' };
+const HEAD = sprite([
+  '......gGg..n......',
+  '...KgGGGgKnKKK....',
+  '..KlgggrrKKrrrrK..',
+  '.KlhlrrrrrrrrrrdK.',
+  '.KhlrrrrrrrrrrrdK.',
+  'KllrrrrrrrrrrrrrdK',
+  'KlBBBBrrrrrrBBBBdK',
+  'KrrSSEErrrrrSSErdK',
+  'KrrddrrrrrrrddrrdK',
+  'KrrrrrrrrrrrrrrrdK',
+  '.KrrrrmmmmmmrrddK.',
+  '.KdrrmrrrrrrmrddK.',
+  '..KddrrrrrrrdddK..',
+  '...KKdddddddKKK...',
+  '.....KKKKKKK......'
+], HEAD_PAL);
+const MINI = sprite([
+  '....g.n....',
+  '..KKKnKKK..',
+  '.KllrrrrrK.',
+  'KlhrrrrrrdK',
+  'KBBBrrrBBdK',
+  'KrSErrrSEdK',
+  'KrrrrrrrrdK',
+  'KrrmmmmmrdK',
+  '.KmrrrrrmK.',
+  '..KKKKKKK..'
+], HEAD_PAL);
+
+function frutti(x, y, o = {}) {
+  x = Math.round(x); y = Math.round(y);
+  const st = o.step ? (Math.floor(o.step * 8) % 2) : -1;
+  const lL = st === 0 ? 1 : 0, lR = st === 1 ? 1 : 0, fit = o.outfit;
+  const LOOK = {
+    deal: ['#2f3346', '#23242f'], fraud: ['#22304f', '#1a2640'], heist: ['#e8e8f0', '#15151f'],
+    pimp: ['#6d2bb0', '#4c1a85'], gamble: ['#16161f', '#16161f']
+  }[fit] || ['#f4ecd8', '#cfae68'];
+  const [top, legs] = LOOK, skin = '#8e1a38';
+  // canvas shoes
+  R(x - 7, y - 3 - lL, 6, 3, OUT); R(x - 6, y - 3 - lL, 4, 2, '#f4ecd8');
+  R(x + 1, y - 3 - lR, 6, 3, OUT); R(x + 2, y - 3 - lR, 4, 2, '#f4ecd8');
+  // trousers
+  R(x - 5, y - 10, 4, 7 - lL, legs); R(x + 1, y - 10, 4, 7 - lR, legs); R(x - 5, y - 11, 10, 2, legs); R(x - 1, y - 8, 1, 5, '#00000040');
+  // shirt, rolled sleeves, bare forearms
+  R(x - 6, y - 17, 12, 7, top);
+  R(x - 8, y - 17, 2, 3, top); R(x + 6, y - 17, 2, 3, top);
+  R(x - 8, y - 14, 2, 4, skin); R(x + 6, y - 14, 2, 4, skin); R(x - 8, y - 10, 2, 2, '#6e102c'); R(x + 6, y - 10, 2, 2, '#6e102c');
+  if (!fit) { R(x, y - 15, 1, 5, '#e8dec6'); R(x - 2, y - 16, 4, 1, skin); }
+  if (fit === 'dogs') { R(x, y - 15, 1, 1, '#e8dec6'); R(x - 5, y - 15, 10, 8, '#ffffff'); R(x - 5, y - 15, 10, 1, '#d8304a'); }
+  if (fit === 'deal') { R(x - 2, y - 13, 4, 2, '#454b66'); }
+  if (fit === 'pimp') { R(x - 9, y - 17, 18, 13, '#6d2bb0'); R(x - 10, y - 17, 3, 13, '#ff8fc0'); R(x + 7, y - 17, 3, 13, '#ff8fc0'); R(x - 10, y - 5, 20, 2, '#ff8fc0'); R(x - 3, y - 16, 6, 1, '#ffe680'); R(x - 1, y - 15, 2, 2, '#ffe680'); }
+  if (fit === 'heist') { for (let i = 0; i < 3; i++) R(x - 6, y - 16 + i * 2, 12, 1, '#15151f'); }
+  if (fit === 'fraud') { R(x - 2, y - 17, 4, 6, '#ffffff'); R(x - 1, y - 17, 2, 6, '#d8304a'); }
+  if (fit === 'gamble') { R(x - 2, y - 17, 4, 7, '#ffffff'); R(x - 2, y - 17, 4, 2, '#ffe680'); }
+  // head
+  g.drawImage(HEAD, x - 9, y - 31);
+  const eye = y - 24;
+  if (fit === 'dogs') { R(x - 7, y - 34, 14, 5, '#ffffff'); R(x - 7, y - 31, 14, 1, '#d8304a'); R(x - 5, y - 36, 10, 2, '#ffffff'); }
+  if (fit === 'deal') { R(x - 8, y - 33, 16, 5, '#2f3346'); R(x - 8, y - 30, 16, 1, '#454b66'); R(x - 8, eye, 7, 2, '#0a0a10'); R(x + 1, eye, 7, 2, '#0a0a10'); R(x - 1, eye, 2, 1, '#0a0a10'); }
+  if (fit === 'pimp') {
+    R(x - 14, y - 32, 28, 2, '#9a4ce8'); R(x - 7, y - 38, 14, 6, '#8a3fd8'); R(x - 7, y - 34, 14, 2, '#ffe680');
+    R(x + 6, y - 43, 2, 7, '#ff8fc0'); R(x + 8, y - 44, 1, 4, '#ff8fc0');
+    R(x - 8, eye, 7, 2, '#0a0a10'); R(x + 1, eye, 7, 2, '#0a0a10'); R(x - 1, eye, 2, 1, '#ffe680');
+  }
+  if (fit === 'heist') { R(x - 8, y - 33, 16, 5, '#15151f'); R(x - 8, y - 25, 16, 3, '#15151f'); R(x - 6, eye, 3, 1, '#fff'); R(x + 3, eye, 3, 1, '#fff'); }
+  if (fit === 'fraud') { R(x - 8, eye - 1, 7, 1, '#ffe680'); R(x + 1, eye - 1, 7, 1, '#ffe680'); R(x - 8, eye + 2, 7, 1, '#ffe680'); R(x + 1, eye + 2, 7, 1, '#ffe680'); R(x - 1, eye, 2, 1, '#ffe680'); }
+  if (fit === 'gamble') { R(x - 9, y - 29, 18, 2, '#2f9a5a'); R(x - 9, y - 27, 18, 1, '#16643a'); }
+}
+function fruttiBig(x, y, sc, o) { g.save(); g.translate(x, y); g.scale(sc, sc); frutti(0, 0, o); g.restore(); }
+
+/* fruit NPCs */
+const SHAPES = {
+  round: ['...KKKKKK...','.KKbbbbbbKK.','.KbhbbbbbdK.','KbhbbbbbbbdK','KbbEbbbbEbdK','KbbEbbbbEbdK','KbbbbbbbbbdK','KbbbmmmbbbdK','.KbbbbbbbdK.','.KKddddddKK.','...KKKKKK...'],
+  pear:  ['....KKKK....','...KbbbbK...','...KhbbdK...','...KbbbdK...','..KbbbbbdK..','.KbEbbbEbdK.','.KbEbbbEbdK.','KbbbbbbbbbdK','KbbbmmmbbbdK','.KKbdddddKK.','...KKKKKK...'],
+  long:  ['.....KK.....','....KbbK....','....KbbbK...','...KhbbbK...','...KEbEbdK..','...KEbEbdK..','...KbbbbdK..','...KbmmbdK..','...KbbbbdK..','....KbbdK...','.....KKK....']
+};
+const FRUITS = {
+  orange: ['round', '#f28a1e', '#b85a0c', '#ffc27a', '#2e8a3e'],
+  plum:   ['round', '#8d3fb0', '#5d2080', '#c98ae0', '#2e8a3e'],
+  peach:  ['round', '#ff9f80', '#d86a50', '#ffd8c8', '#2e8a3e'],
+  lime:   ['round', '#7fc738', '#4e8a1e', '#c8f08a', '#7a4a1e'],
+  lemon:  ['round', '#f6d92e', '#c0a010', '#fff5a0', '#2e8a3e'],
+  cop:    ['round', '#3f5fd8', '#27389a', '#8aa6f8', '#22306a'],
+  pear:   ['pear',  '#a8c838', '#6f8a1e', '#dcf08a', '#7a4a1e'],
+  rival:  ['pear',  '#3fbf6a', '#1e7f42', '#8aeeae', '#7a4a1e'],
+  banana: ['long',  '#ffd93b', '#c8a018', '#fff3a8', '#7a4a1e'],
+  grape:  ['round', '#5e3fc0', '#3c2488', '#a48cf0', '#2e8a3e']
+};
+const npcCache = {};
+function npcSprite(kind) {
+  if (npcCache[kind]) return npcCache[kind];
+  const f = FRUITS[kind];
+  return npcCache[kind] = sprite(SHAPES[f[0]], { K: OUT, b: f[1], d: f[2], h: f[3], E: '#120810', m: '#3a0a18' });
+}
+function npc(kind, x, y, t = 0, o = {}) {
+  x = Math.round(x); y = Math.round(y);
+  const s = t ? Math.floor(t * 8) % 2 : 0;
+  R(x - 3, y - 4, 1, 3 + s, '#f2d4b4'); R(x + 2, y - 4, 1, 4 - s, '#f2d4b4');
+  R(x - 5, y - 1 - (s ? 0 : 1), 4, 2, '#2a1a22'); R(x + 1, y - 1 - (s ? 1 : 0), 4, 2, '#2a1a22');
+  g.drawImage(npcSprite(kind), x - 6, y - 15);
+  R(x, y - 16, 1, 2, FRUITS[kind][4]);
+  if (kind === 'cop' || o.cap) { R(x - 5, y - 18, 10, 3, '#1b2348'); R(x - 6, y - 15, 12, 1, '#10152e'); R(x - 1, y - 17, 2, 1, '#ffe680'); }
+  if (o.shades) { R(x - 5, y - 11, 4, 2, '#06060a'); R(x + 1, y - 11, 4, 2, '#06060a'); R(x - 1, y - 11, 2, 1, '#06060a'); }
+  if (o.clip) { R(x + 5, y - 9, 6, 8, '#b98a50'); R(x + 6, y - 8, 4, 6, '#fff'); R(x + 7, y - 7, 2, 1, '#555'); }
+  if (o.hat) { R(x - 9, y - 16, 18, 2, o.hat); R(x - 5, y - 21, 10, 5, o.hat); R(x - 5, y - 18, 10, 1, '#ffe680'); }
+  if (o.mad) { R(x - 5, y - 13, 4, 1, '#120810'); R(x + 1, y - 13, 4, 1, '#120810'); }
+}
+
+/* Mr. Honeycrisp's bust: his head from the Hold It In sprite, on a front-facing body in the same palette */
+const BUSTS = {};
+Object.entries({ grump: 'data:image/png;base64,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', smug: 'data:image/png;base64,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', cry: 'data:image/png;base64,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' }).forEach(([mood, src]) => { BUSTS[mood] = new Image(); BUSTS[mood].src = src; });
+function portrait(x, y, mood = 'grump') { if (BUSTS[mood].complete) g.drawImage(BUSTS[mood], x, y); }
+
+/* ---------------------------------------------------------------- hustles */
+// One heart buys a night of this many hustles. Earning SCORE_TARGET in a night scores 100.
+const RUNS_PER_NIGHT = 3, SCORE_TARGET = 1000;
+const BUDGET = 1250;  // the most expensive option on every step of the proposal
+// rate tunes what each hustle pays against the prices in lib/proposalPlan.ts
+const HUSTLES = [
+  { id: 'dogs', name: 'HOT DOGS', risk: 1, pay: 1, time: 45, rate: .25, finePct: 0, fineMin: 5, keep: true, buyIn: 0,
+    blurb: 'Honest money. Match each order before the line walks off.',
+    how: ['ARROW KEYS ADD TOPPINGS', 'MATCH THE ORDER LEFT TO RIGHT', '3 WALK-OFFS AND YOUR PERMIT IS PULLED'],
+    bust: 'Keep your take, pay a $5 fine.' },
+  { id: 'deal', name: 'DRUG DEALER', risk: 2, pay: 2, time: 50, rate: .2, finePct: .10, fineMin: 0, buyIn: 0,
+    blurb: 'Grab the goods, hit buyers across town, stay out of sight.',
+    how: ['ARROWS MOVE. DUMPSTERS RELOAD YOUR STASH', 'WALK INTO BUYERS TO SELL', 'SHADES = UNDERCOVER. ANY COP TOUCH = BUSTED'],
+    bust: 'Lose the take + 10% of your money.' },
+  { id: 'pimp', name: 'PIMP', risk: 3, pay: 3, time: 50, rate: .1, finePct: .20, fineMin: 0, buyIn: 0,
+    blurb: 'Fur coat, big hat. Run the boulevard and defend your corners.',
+    how: ['SPACE: COLLECT FROM CREW, SMACK RIVALS', 'UP AT A DOORWAY WHEN THE COPS ROLL BY', '3 LOST CREW ENDS THE NIGHT. FULL HEAT = BUSTED'],
+    bust: 'Lose the take + 20% of your money.' },
+  { id: 'heist', name: 'HEIST', risk: 4, pay: 4, time: null, rate: .05, finePct: .35, fineMin: 0, buyIn: 0,
+    blurb: 'Every safe doubles the score and the sirens. Then you still have to drive.',
+    how: ['SPACE IN THE GREEN CRACKS A TUMBLER', 'AFTER EACH SAFE: GO DEEPER OR RUN', 'LEFT / RIGHT TO DODGE. 3 CRASHES = BUSTED'],
+    bust: 'Lose the take + 35% of your money.' },
+  { id: 'fraud', name: 'BANK FRAUD', risk: 5, pay: 5, time: null, rate: .02, finePct: .60, fineMin: 0, buyIn: 0,
+    blurb: 'Checks grow fast and so does the trace. Know when to vanish.',
+    how: ['RIGHT: CASH IT IF IT MATCHES THE TARGET CARD', 'LEFT: SHRED FAKES (NAME, COLOR, SIGNATURE)', 'DOWN: CASH OUT. FULL TRACE = FEDS'],
+    bust: 'Lose the take + 60% of your money.' },
+  { id: 'gamble', name: 'GAMBLING', risk: 6, pay: 6, time: null, rate: 1, finePct: 0, fineMin: 0, buyIn: 1, ownStake: true,
+    blurb: 'One wheel. Bet a slice or go all in, then let it ride as long as you dare.',
+    how: ['LEFT / RIGHT: SET YOUR BET. UP / DOWN: PICK A COLOR', 'RED OR BLACK PAYS X2. GREEN PAYS X14', 'ALL IN ON GREEN PAYS X30. AFTER A WIN: RIDE OR CASH OUT'],
+    bust: 'Lose your whole bet. All in means all of it.' }
+];
+const RANKS = [[0, 'BROKE'], [100, 'SMALL FRY'], [400, 'BAD APPLE'], [800, 'BIG APPLE'], [BUDGET, 'READY TO PROPOSE']];
+const rankOf = b => RANKS.filter(r => b >= r[0]).pop()[1];
+const canAfford = h => getMoney() >= h.buyIn;
+let night = null;
+function startNight() { night = { run: 0, start: getMoney() }; }
+
+/* --- hot dogs ------------------------------------------------------ */
+const TOPS = {
+  left:  { name: 'KETCHUP', c: '#e0343c', d: '#8a1820', g: '<' },
+  up:    { name: 'MUSTARD', c: '#f6c81e', d: '#a07c0a', g: '^' },
+  right: { name: 'RELISH',  c: '#55b83a', d: '#2c6a1a', g: '>' },
+  down:  { name: 'ONION',   c: '#f4ecd8', d: '#a89c80', g: '_' }
+};
+const TOPK = Object.keys(TOPS);
+function topTile(k, x, y, done) {
+  const t = TOPS[k];
+  R(x, y, 15, 15, OUT); R(x + 1, y + 1, 13, 13, done ? '#3a3040' : t.c); R(x + 1, y + 12, 13, 2, done ? '#2a2030' : t.d);
+  text(t.g, x + 6, y + 5, done ? '#6a6070' : (k === 'down' ? '#3a3020' : '#fff'));
+}
+const DOG_BG = layer(r => {
+  const rn = seeded(11);
+  for (let y = 0; y < 120; y++) r(0, y, W, 1, y < 34 ? '#2c2266' : y < 62 ? '#5f3f97' : y < 90 ? '#b5608f' : '#e8b9a0');
+  for (let y = -9; y <= 9; y++) for (let x = -9; x <= 9; x++) if (x * x + y * y <= 81 && (x - 4) ** 2 + (y + 2) ** 2 > 56) r(44 + x, 22 + y, 1, 1, '#ffeeb0');
+    let x = 0;
+  while (x < W) {
+    const w = 34 + rn() * 34 | 0, h = 40 + rn() * 62 | 0, c = pick2(rn, ['#46223f', '#51296c', '#2c2266', '#5b3176', '#463289']);
+    r(x, 118 - h, w, h, c); r(x, 118 - h, w, 3, '#00000033');
+    for (let wy = 118 - h + 8; wy < 108; wy += 12) for (let wx = x + 5; wx < x + w - 8; wx += 11) r(wx, wy, 7, 8, rn() < .4 ? '#ffd87a' : '#2c2266');
+    x += w;
+  }
+  r(0, 118, W, 30, '#7f4d9f'); for (let i = 0; i < W; i += 28) r(i, 118, 1, 30, '#5f3f97');
+  r(0, 146, W, 2, '#e8b9a0'); r(0, 148, W, 32, '#2c2266');
+  for (let i = 8; i < W; i += 36) r(i, 162, 18, 2, '#e8d868');
+});
+function pick2(rn, a) { return a[Math.floor(rn() * a.length)]; }
+function drawCart(t) {
+  // awning
+  R(189, 68, 2, 40, '#555'); R(273, 68, 2, 40, '#555');
+  R(180, 60, 104, 12, OUT);
+  for (let i = 0; i < 13; i++) { R(181 + i * 8, 61, 8, 10, i % 2 ? '#f4ecd8' : '#ad2c4a'); R(181 + i * 8, 71, 8, 2, i % 2 ? '#f4ecd8' : '#ad2c4a'); }
+  // cart body
+  R(186, 110, 92, 30, OUT); R(187, 111, 90, 28, '#ad2c4a'); R(187, 111, 90, 4, '#e8b9a0');
+  text('DOGS', 232, 120, '#fdfbff', { s: 2, c: 1, sh: '#46081f' });
+  R(182, 106, 100, 5, OUT); R(183, 107, 98, 3, '#d8d8e0');
+  R(194, 140, 12, 8, OUT); R(196, 142, 8, 4, '#555'); R(258, 140, 12, 8, OUT); R(260, 142, 8, 4, '#555');
+}
+function drawDog(x, y, tops) {
+  R(x - 2, y, 28, 8, OUT); R(x - 1, y + 1, 26, 6, '#e8b860'); R(x + 1, y - 2, 22, 6, OUT); R(x + 2, y - 1, 20, 4, '#b5482c');
+  tops.forEach((k, i) => { const c = TOPS[k].c; for (let j = 0; j < 5; j++) R(x + 3 + i * 5 + j, y - 1 + (j % 2), 1, 2, c); });
+}
+function gameDogs(run) {
+  const SLOT = i => 150 - i * 26;
+  let q = [], spawn = .2, strikes = 0, streak = 0, idx = 0, wiggle = 0, sinceInsp = 0, elapsed = 0, cooked = [];
+  const mk = () => {
+    sinceInsp++;
+    const insp = sinceInsp >= 8 && Math.random() < .5;
+    if (insp) sinceInsp = 0;
+    const max = elapsed < 12 ? 2 : elapsed < 28 ? 3 : 4;
+    const len = insp ? 4 : 1 + Math.floor(Math.random() * max);
+    const order = Array.from({ length: len }, () => pick(TOPK));
+    const pat = (5.5 + len * 1.3) / run.spd;
+    return { kind: insp ? 'lemon' : pick(['orange', 'plum', 'peach', 'lime', 'pear', 'banana', 'grape']), x: -14, order, pat, max: pat, insp, wt: 0, leaving: 0 };
+  };
+  function serve(c) {
+    const frac = c.pat / c.max, mult = 1 + Math.min(streak, 10) * .1;
+    const base = c.insp ? 80 : 6 + c.order.length * 4;
+    const amt = Math.max(1, Math.round((base + frac * 8) * mult * run.pay));
+    run.take += amt; streak++;
+    pop('+' + money(amt), 150, 72); coins(170, 104, 6); sfx('coin');
+    if (streak > 0 && streak % 5 === 0) pop('STREAK X' + (1 + Math.min(streak, 10) * .1).toFixed(1), 232, 56, '#fff');
+    c.leaving = 1; c.happy = 1; idx = 0;
+  }
+  function strike(n, msg) {
+    strikes += n; streak = 0; run.heat = clamp(strikes / 3, 0, 1); pop(msg, 110, 60, '#ff6a6a'); sfx('bad'); bump(3);
+    if (strikes >= 3) run.bust('PERMIT PULLED!');
+  }
+  return {
+    update(dt) {
+      elapsed += dt; spawn -= dt; wiggle = Math.max(0, wiggle - dt * 6);
+      if (spawn <= 0 && q.filter(c => !c.leaving).length < 5) { q.push(mk()); spawn = rand(1.5, 2.4) / run.spd; }
+      const line = q.filter(c => !c.leaving);
+      line.forEach((c, i) => {
+        const tx = SLOT(i);
+        if (c.x < tx) { c.x = Math.min(tx, c.x + 110 * dt); c.wt += dt; } else if (c.x > tx) c.x = Math.max(tx, c.x - 110 * dt);
+        c.pat -= dt * (i === 0 ? 1 : .28);
+        if (c.pat <= 0) { c.leaving = 1; if (i === 0) idx = 0; strike(c.insp ? 2 : 1, c.insp ? 'FAILED INSPECTION' : 'WALK-OFF!'); }
+      });
+      q.forEach(c => { if (c.leaving) { c.x += (c.happy ? 110 : -130) * dt; c.wt += dt; } });
+      q = q.filter(c => c.x > -24 && c.x < 340);
+      const front = q.filter(c => !c.leaving)[0];
+      if (front && front.x <= SLOT(0) + 8) {
+        for (const k of TOPK) if (hit[k]) {
+          if (front.order[idx] === k) {
+            idx++; sfx('move'); wiggle = 1;
+            if (idx === front.order.length) serve(front);
+          } else {
+            sfx('bad'); bump(2); idx = 0; streak = 0; front.pat -= 1.5; pop('WRONG DOG', 232, 80, '#ff6a6a');
+          }
+          break;
+        }
+      }
+    },
+    draw() {
+      g.drawImage(DOG_BG, 0, 0);
+      frutti(232, 110 + (wiggle > .5 ? 1 : 0), { outfit: 'dogs' });
+      drawCart();
+      const line = q.filter(c => !c.leaving);
+      const front = line[0];
+      drawDog(196, 100, front ? front.order.slice(0, idx) : []);
+      q.slice().sort((a, b) => a.x - b.x).forEach(c => npc(c.kind, c.x, 146, c.wt, { clip: c.insp, mad: c.pat < 2 && !c.happy }));
+      // patience pips for those waiting
+      line.slice(1).forEach(c => { if (c.x > 0) { R(c.x - 7, 123, 14, 2, '#0008'); R(c.x - 7, 123, 14 * c.pat / c.max, 2, c.pat / c.max < .35 ? '#ff4040' : '#7fe07a'); } });
+      if (front && front.x <= SLOT(0) + 8) {
+        const n = front.order.length, bw = n * 17 + 8, bx = clamp(150 - bw / 2, 4, 170);
+        R(bx - 1, 77, bw + 2, 34, OUT); R(bx, 78, bw, 32, '#fffdf2');
+        R(146, 111, 6, 3, OUT); R(147, 111, 4, 2, '#fffdf2');
+        if (front.insp) text('INSPECTOR', bx + bw / 2, 80, '#b07000', { c: 1 });
+        front.order.forEach((k, i) => topTile(k, bx + 5 + i * 17, 87, i < idx));
+        R(bx + 2, 105, bw - 4, 3, '#ccc'); R(bx + 2, 105, (bw - 4) * clamp(front.pat / front.max, 0, 1), 3, front.pat / front.max < .35 ? '#e0343c' : '#4cb050');
+      }
+      // key strip
+      R(0, 165, W, 15, '#000a');
+      TOPK.forEach((k, i) => { const x = 8 + i * 78; topTile(k, x, 165 - 0, false); text(TOPS[k].name, x + 18, 170, held[k] ? '#ffe680' : '#fff'); });
+      if (streak > 1) text('X' + (1 + Math.min(streak, 10) * .1).toFixed(1), 314, 170, '#ffe680', { r: 1 });
+    }
+  };
+}
+
+/* --- dealer -------------------------------------------------------- */
+const MAP = [
+  '....................',
+  '.###.####..####.###.',
+  '.###.####..####.###.',
+  '....................',
+  '.##.###.####.###.##.',
+  '.##.###.####.###.##.',
+  '....................',
+  '.###.####..####.###.',
+  '.###.####..####.###.',
+  '....................'
+];
+const TS = 16, MY = 14;
+const open = (x, y) => y >= 0 && y < 10 && x >= 0 && x < 20 && MAP[y][x] === '.';
+const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+const DEAL_BG = layer(r => {
+  const rn = seeded(77);
+  r(0, 0, W, H, '#20233a');
+  for (let y = 0; y < 10; y++) for (let x = 0; x < 20; x++) {
+    const px = x * TS, py = MY + y * TS;
+    if (MAP[y][x] === '.') {
+      r(px, py, TS, TS, '#2b2f49');
+      if ((x + y) % 2 === 0) r(px + 7, py + 7, 2, 2, '#3a3f5e');
+      if (rn() < .06) r(px + 3, py + 4, 3, 2, '#23263c');
+    } else {
+      const c = ['#46395e', '#3f4a6a', '#5a3c4e'][(x >> 2) % 3];
+      r(px, py, TS, TS, c);
+      if (!open(x, y - 1) ) r(px, py, TS, 0, c); else r(px, py, TS, 2, '#7a6a98');
+      if (open(x, y + 1)) { r(px, py + 11, TS, 5, '#1b1c2e'); r(px + 3, py + 12, 3, 3, rn() < .5 ? '#ffd36a' : '#34384f'); r(px + 10, py + 12, 3, 3, rn() < .3 ? '#ffd36a' : '#34384f'); }
+      if (rn() < .18) { r(px + 4, py + 3, 7, 5, '#2a2340'); r(px + 5, py + 2, 5, 1, '#6a5a88'); }
+    }
+  }
+  [[4, 3], [10, 6], [15, 3], [4, 6], [15, 6], [10, 3], [4, 9], [15, 9]].forEach(([x, y]) => { const px = x * TS, py = MY + y * TS; for (let i = 0; i < 4; i++) r(px + 2 + i * 3, py + 1, 2, 3, '#454a6a'); });
+});
+function gameDeal(run) {
+  const mover = (tx, ty, dir) => ({ tx, ty, nx: tx, ny: ty, p: 0, dir, t: 0 });
+  const pos = m => ({ x: (m.tx + (m.nx - m.tx) * m.p) * TS + 8, y: MY + (m.ty + (m.ny - m.ty) * m.p) * TS + 8 });
+  const P = mover(9, 6, null);
+  let want = null, carry = 3, buyers = [], bSpawn = .3, cops = [], streak = 0, streakT = 0, elapsed = 0;
+  const stash = [{ x: 0, y: 0 }, { x: 19, y: 9 }, { x: 19, y: 0 }, { x: 0, y: 9 }];
+  const addCop = () => { const c = stash.slice().sort((a, b) => (Math.abs(b.x - P.tx) + Math.abs(b.y - P.ty)) - (Math.abs(a.x - P.tx) + Math.abs(a.y - P.ty)))[0]; const m = mover(c.x, c.y, c.x ? 'left' : 'right'); m.chase = 0; m.seen = false; cops.push(m); };
+  addCop();
+  function move(m, sp, dt, choose) {
+    let d = sp * dt / TS;
+    while (d > 0) {
+      if (m.nx === m.tx && m.ny === m.ty) {
+        const dir = choose(m);
+        if (!dir) return;
+        m.dir = dir; m.nx = m.tx + DIRS[dir][0]; m.ny = m.ty + DIRS[dir][1]; m.p = 0;
+      }
+      const need = 1 - m.p;
+      if (d < need) { m.p += d; return; }
+      d -= need; m.tx = m.nx; m.ty = m.ny; m.p = 0;
+    }
+  }
+  function bfsStep(sx, sy, tx, ty) {
+    if (sx === tx && sy === ty) return null;
+    const seen = new Map(), qq = [[sx, sy, null]]; seen.set(sx + ',' + sy, 1);
+    while (qq.length) {
+      const [x, y, first] = qq.shift();
+      for (const k in DIRS) {
+        const X = x + DIRS[k][0], Y = y + DIRS[k][1], key = X + ',' + Y;
+        if (!open(X, Y) || seen.has(key)) continue;
+        seen.set(key, 1); const f = first || k;
+        if (X === tx && Y === ty) return f;
+        qq.push([X, Y, f]);
+      }
+    }
+    return null;
+  }
+  function sees(c) {
+    if (Math.abs(c.tx - P.tx) + Math.abs(c.ty - P.ty) <= 1) return true;
+    if (!c.dir) return false;
+    const [dx, dy] = DIRS[c.dir];
+    for (let i = 1, x = c.tx + dx, y = c.ty + dy; i <= 6 && open(x, y); i++, x += dx, y += dy) if (x === P.tx && y === P.ty) return true;
+    return false;
+  }
+  const OPP = { up: 'down', down: 'up', left: 'right', right: 'left' };
+  return {
+    update(dt) {
+      elapsed += dt; P.t += dt;
+      for (const k in DIRS) if (hit[k]) want = k;
+      if (!want || !held[want]) for (const k in DIRS) if (held[k]) want = k;
+      // reverse in place feels instant
+      if (want && P.dir === OPP[want] && (P.nx !== P.tx || P.ny !== P.ty)) {
+        const a = P.tx, b = P.ty; P.tx = P.nx; P.ty = P.ny; P.nx = a; P.ny = b; P.p = 1 - P.p; P.dir = want;
+      }
+      const anyHeld = TOPK.some(k => held[k]);
+      move(P, 84, dt, () => {
+        if (want && open(P.tx + DIRS[want][0], P.ty + DIRS[want][1]) && anyHeld) return want;
+        if (P.dir && anyHeld && open(P.tx + DIRS[P.dir][0], P.ty + DIRS[P.dir][1])) return P.dir;
+        return null;
+      });
+      const me = pos(P);
+      // stash
+      stash.forEach(s => {
+        if (Math.hypot(s.x * TS + 8 - me.x, MY + s.y * TS + 8 - me.y) < 11 && carry < 5) { carry = 5; sfx('ok'); pop('RELOAD', me.x, me.y - 12, '#9fe8ff'); }
+      });
+      // buyers
+      bSpawn -= dt;
+      if (bSpawn <= 0 && buyers.length < 3) {
+        for (let tries = 0; tries < 20; tries++) {
+          const x = Math.floor(rand(0, 20)), y = Math.floor(rand(0, 10));
+          if (!open(x, y) || Math.abs(x - P.tx) + Math.abs(y - P.ty) < 5) continue;
+          if (stash.some(s => s.x === x && s.y === y) || buyers.some(b => b.x === x && b.y === y)) continue;
+          const uc = Math.random() < .1 + .03 * run.lvl + elapsed * .002;
+          buyers.push({ x, y, life: 9 / Math.sqrt(run.spd), max: 9 / Math.sqrt(run.spd), kind: uc ? 'cop' : pick(['orange', 'peach', 'lime', 'pear', 'banana', 'plum']), uc });
+          break;
+        }
+        bSpawn = rand(.9, 1.7);
+      }
+      buyers = buyers.filter(b => {
+        b.life -= dt;
+        const bx = b.x * TS + 8, by = MY + b.y * TS + 8;
+        if (Math.hypot(bx - me.x, by - me.y) < 11) {
+          if (carry <= 0) { if (!b.warn) { b.warn = 1; pop('NO STASH!', bx, by - 14, '#ff6a6a'); sfx('bad'); } return b.life > 0; }
+          if (b.uc) {
+            run.heat = clamp(run.heat + .4, 0, 1); pop('UNDERCOVER!', bx, by - 14, '#ff6a6a'); sfx('siren'); bump(4); flashOn('#3f5fd8', .4);
+            streak = 0; addCop(); return false;
+          }
+          carry--; streakT = 4;
+          const rush = b.life / b.max, amt = Math.round((70 + rush * 50) * (1 + Math.min(streak, 8) * .08) * run.pay);
+          streak++; run.take += amt; pop('+' + money(amt), bx, by - 14); coins(bx, by); sfx('coin');
+          return false;
+        }
+        return b.life > 0;
+      });
+      streakT -= dt; if (streakT <= 0) streak = 0;
+      // cops
+      const need = 1 + (run.heat > .35 ? 1 : 0) + (run.heat > .7 ? 1 : 0) + (elapsed > 30 ? 1 : 0) + (run.lvl > 2 ? 1 : 0);
+      if (cops.length < need) { addCop(); sfx('siren'); }
+      let spotted = false;
+      cops.forEach(c => {
+        c.t += dt;
+        if (sees(c)) { if (c.chase <= 0) { sfx('siren'); pop('!', pos(c).x, pos(c).y - 18, '#ff4040'); } c.chase = 3.2; spotted = true; }
+        else c.chase -= dt;
+        const chasing = c.chase > 0 || run.heat >= 1;
+        const sp = (chasing ? 70 : 42) * Math.sqrt(run.spd) * (run.heat >= 1 ? 1.08 : 1);
+        move(c, sp, dt, m => {
+          if (chasing) { const s = bfsStep(m.tx, m.ty, P.tx, P.ty); if (s) return s; }
+          const opts = Object.keys(DIRS).filter(k => open(m.tx + DIRS[k][0], m.ty + DIRS[k][1]) && k !== OPP[m.dir]);
+          return opts.length ? pick(opts) : OPP[m.dir];
+        });
+        const q = pos(c);
+        if (Math.hypot(q.x - me.x, q.y - me.y) < 9) run.bust('CUFFED!');
+      });
+      run.heat = clamp(run.heat + (spotted ? dt * .2 : -dt * .025), 0, 1);
+    },
+    draw() {
+      g.drawImage(DEAL_BG, 0, 0);
+      // vision lanes
+      cops.forEach(c => {
+        if (!c.dir) return;
+        const [dx, dy] = DIRS[c.dir];
+        const a = c.chase > 0 ? '#ff404030' : '#ffe14d20';
+        for (let i = 1, x = c.tx + dx, y = c.ty + dy; i <= 6 && open(x, y); i++, x += dx, y += dy) R(x * TS, MY + y * TS, TS, TS, a);
+      });
+      stash.forEach((s, i) => {
+        const x = s.x * TS + 2, y = MY + s.y * TS + 3;
+        R(x, y, 12, 10, OUT); R(x + 1, y + 1, 10, 8, '#2f7a4a'); R(x, y + 2, 12, 1, '#17402a'); R(x + 3, y + 4, 6, 3, '#17402a');
+        if (carry < 2 && Math.floor(performance.now() / 200) % 2) text('^', x + 5, y - 7, '#9fe8ff');
+      });
+      buyers.forEach(b => {
+        const bx = b.x * TS + 8, by = MY + b.y * TS + 15;
+        npc(b.kind, bx, by, 0, { shades: b.uc, cap: false });
+        const frac = b.life / b.max;
+        R(bx - 6, by - 21, 12, 2, '#000a'); R(bx - 6, by - 21, 12 * frac, 2, frac < .3 ? '#ff4040' : '#7fe07a');
+        text('$', bx - 1, by - 28, '#7fe07a', { sh: '#000' });
+      });
+      const me = pos(P);
+      {
+        const mx = Math.round(me.x), my = Math.round(me.y), w = (P.nx !== P.tx || P.ny !== P.ty) ? Math.floor(P.t * 10) % 2 : 0;
+        R(mx - 6, my + 4, 5, 3 - w, '#b9622a'); R(mx + 1, my + 4, 5, 2 + w, '#b9622a');
+        g.drawImage(HEAD, mx - 9, my - 11);
+        R(mx - 8, my - 13, 16, 5, '#2f3346'); R(mx - 8, my - 10, 16, 1, '#454b66'); R(mx - 8, my - 5, 7, 2, '#06060a'); R(mx + 1, my - 5, 7, 2, '#06060a'); R(mx - 1, my - 5, 2, 1, '#06060a');
+      }
+      cops.forEach(c => { const q = pos(c); npc('cop', q.x, q.y + 7, c.t); if (c.chase > 0 && Math.floor(c.t * 8) % 2) { R(q.x - 6, q.y - 13, 4, 2, '#ff3040'); R(q.x + 2, q.y - 13, 4, 2, '#4080ff'); } });
+      // stash pips
+      R(0, 171, W, 9, UI.ink); text('STASH', 4, 173, UI.white);
+      for (let i = 0; i < 5; i++) R(30 + i * 6, 173, 5, 5, i < carry ? UI.yellow : '#46406a');
+      if (streak > 1) text('COMBO X' + (1 + Math.min(streak, 8) * .08).toFixed(2), 316, 173, UI.yellow, { r: 1 });
+      if (carry === 0) text('RELOAD AT A DUMPSTER', W / 2, 173, UI.pink, { c: 1 });
+    }
+  };
+}
+
+/* --- pimp ---------------------------------------------------------- */
+const PIMP_BG = layer((r, x) => {
+  const rn = seeded(31);
+  for (let y = 0; y < 136; y++) r(0, y, W, 1, y < 40 ? '#1a0a33' : y < 90 ? '#2c0f4a' : '#481660');
+  for (let i = 0; i < 50; i++) r(rn() * W, rn() * 60, 1, 1, '#ffffff66');
+  // storefronts
+  const fronts = [[0, 96, '#2a1848', '#ff8fc0', 'LOUNGE'], [96, 28, '#20143c', '#000', ''], [124, 72, '#32184e', '#40e0ff', 'BIJOU'], [196, 28, '#20143c', '#000', ''], [224, 96, '#2a1848', '#ffe680', 'FURS']];
+  fronts.forEach(([fx, fw, c, neon, label], i) => {
+    r(fx, 34 + i % 2 * 10, fw, 102, c);
+    for (let wy = 44 + i % 2 * 10; wy < 86; wy += 11) for (let wx = fx + 6; wx < fx + fw - 8; wx += 12) r(wx, wy, 7, 7, rn() < .35 ? '#ffd36a' : '#160c2a');
+    if (label) {
+      r(fx + 8, 90, fw - 16, 15, '#120820'); r(fx + 8, 90, fw - 16, 1, neon); r(fx + 8, 104, fw - 16, 1, neon);
+      r(fx + 12, 110, fw - 24, 26, '#160c2a'); r(fx + 13, 111, fw - 26, 24, neon + '30');
+    }
+  });
+  // doorways
+  [110, 210].forEach(d => {
+    r(d - 11, 98, 22, 38, '#6a4a2a'); r(d - 9, 100, 18, 36, '#0c0614'); r(d - 9, 100, 18, 2, '#ffe680'); r(d - 2, 90, 4, 6, '#ffe680');
+  });
+  r(0, 136, W, 22, '#55506a'); for (let i = 0; i < W; i += 22) r(i, 136, 1, 22, '#44405a');
+  r(0, 156, W, 2, '#8a8498'); r(0, 158, W, 22, '#1c1a28');
+  for (let i = 6; i < W; i += 30) r(i, 168, 16, 2, '#c8b850');
+});
+function neonSigns(t) {
+  const on = n => Math.sin(t * n) > -.8;
+  text('LOUNGE', 48, 95, on(7) ? '#ff8fc0' : '#5a2040', { c: 1 });
+  text('BIJOU', 160, 95, on(5) ? '#40e0ff' : '#205a68', { c: 1 });
+  text('FURS', 272, 95, on(9) ? '#ffe680' : '#6a6020', { c: 1 });
+}
+function gamePimp(run) {
+  const DOORS = [110, 210];
+  const crew = [
+    { x: 40, kind: 'peach' }, { x: 160, kind: 'banana' }, { x: 280, kind: 'plum' }
+  ].map(c => Object.assign(c, { m: rand(.1, .4), rate: rand(.16, .24) * run.spd, over: 0, gone: 0 }));
+  let x = 160, face = 1, moving = 0, hidden = false, swing = 0, rivals = [], rSpawn = 5 / run.spd, cop = null, cSpawn = 7, combo = 0, comboT = 0, lost = 0, t = 0;
+  return {
+    update(dt) {
+      t += dt; swing = Math.max(0, swing - dt * 5); comboT -= dt; if (comboT <= 0) combo = 0;
+      const door = DOORS.find(d => Math.abs(d - x) < 14);
+      if (hidden) {
+        if (hit.up || hit.down || hit.left || hit.right || hit.a) { hidden = false; sfx('move'); }
+      } else {
+        moving = 0;
+        if (held.left) { x -= 128 * dt; face = -1; moving = 1; }
+        if (held.right) { x += 128 * dt; face = 1; moving = 1; }
+        x = clamp(x, 12, W - 12);
+        if (hit.up && door != null) { hidden = true; x = door; sfx('ok'); }
+        if (hit.a) {
+          // rivals first, then crew
+          const rv = rivals.filter(r => !r.ko).sort((a, b) => Math.abs(a.x - x) - Math.abs(b.x - x))[0];
+          swing = 1;
+          if (rv && Math.abs(rv.x - x) < 26) {
+            rv.ko = 1; rv.vx = (rv.x < x ? -1 : 1) * 260; sfx('whack'); bump(4); burst(rv.x, 130, 8, ['#fff', '#3fbf6a']);
+            const a = Math.round(90 * run.pay); run.take += a; pop('SMACK +' + money(a), rv.x, 112, '#7fe07a');
+          } else {
+            const c = crew.filter(c => !c.gone && Math.abs(c.x - x) < 24).sort((a, b) => Math.abs(a.x - x) - Math.abs(b.x - x))[0];
+            if (c && c.m >= .3) {
+              combo = Math.min(combo + 1, 6); comboT = 3;
+              const amt = Math.round(c.m * c.m * 300 * (1 + combo * .25) * run.pay);
+              run.take += amt; pop('+' + money(amt), c.x, 96); coins(c.x, 124, 8); sfx('coin');
+              c.m = 0; c.over = 0; run.heat = clamp(run.heat + .012, 0, 1);
+            } else sfx('move');
+          }
+        }
+      }
+      // crew
+      crew.forEach(c => {
+        if (c.gone) { c.gone -= dt; if (c.gone <= 0) { c.gone = 0; c.m = 0; c.over = 0; } return; }
+        c.m = Math.min(1, c.m + c.rate * dt);
+        if (c.m >= 1) {
+          c.over += dt;
+          if (c.over > 4.5) lose(c, 'QUIT!');
+        }
+      });
+      // rivals
+      rSpawn -= dt;
+      if (rSpawn <= 0 && rivals.filter(r => !r.ko).length < 2) {
+        const left = Math.random() < .5, alive = crew.filter(c => !c.gone);
+        if (alive.length) { rivals.push({ x: left ? -14 : W + 14, tgt: pick(alive), steal: 0, walk: 0 }); }
+        rSpawn = rand(4, 7) / run.spd;
+      }
+      rivals = rivals.filter(r => {
+        r.walk += dt;
+        if (r.ko) { r.x += r.vx * dt; return r.x > -30 && r.x < W + 30; }
+        if (r.tgt.gone) { const a = crew.filter(c => !c.gone); if (a.length) r.tgt = pick(a); }
+        const d = r.tgt.x - r.x;
+        if (Math.abs(d) > 16) { r.x += Math.sign(d) * 42 * run.spd * dt; }
+        else {
+          r.steal += dt;
+          if (r.steal > 2.4) { lose(r.tgt, 'POACHED!'); r.ko = 1; r.vx = Math.sign(-d || 1) * 70; }
+        }
+        return true;
+      });
+      // cops
+      cSpawn -= dt;
+      if (!cop && cSpawn <= 1.7 && !run._warned) { run._warned = 1; sfx('siren'); }
+      if (!cop && cSpawn <= 0) {
+        cop = { x: -70, dir: 1, hit: false }; if (Math.random() < .5) { cop.x = W + 70; cop.dir = -1; }
+        cSpawn = rand(7, 10) / Math.sqrt(run.spd); run._warned = 0;
+      }
+      if (cop) {
+        cop.x += cop.dir * 190 * dt;
+        if (!cop.hit && !hidden && Math.abs(cop.x - x) < 44) {
+          cop.hit = true; run.heat = clamp(run.heat + .34, 0, 1); pop('SPOTTED!', x, 92, '#ff6a6a'); sfx('bad'); bump(4); flashOn('#3f5fd8', .35);
+          if (run.heat >= 1) run.bust('PICKED UP!');
+        }
+        if (cop.x < -90 || cop.x > W + 90) cop = null;
+      }
+      function lose(c, msg) {
+        c.gone = 4; lost++; pop(msg, c.x, 90, '#ff6a6a'); sfx('bad'); bump(2);
+        if (lost >= 3) run.finish('CREW QUIT!');
+      }
+    },
+    draw() {
+      g.drawImage(PIMP_BG, 0, 0);
+      neonSigns(t);
+      const warn = !cop && cSpawn <= 1.7;
+      crew.forEach(c => {
+        if (c.gone) { R(c.x - 8, 145, 16, 1, '#3a3650'); text('GONE', c.x, 130, '#88829a', { c: 1 }); return; }
+        const shake = c.m >= 1 ? Math.floor(t * 12) % 2 : 0;
+        npc(c.kind, c.x + shake, 146, 0, { shades: true });
+        // earnings meter
+        R(c.x - 11, 121, 22, 4, OUT); R(c.x - 10, 122, 20 * c.m, 2, c.m >= 1 ? '#ffe680' : c.m >= .3 ? '#7fe07a' : '#567');
+        if (c.m >= 1) { text('$$$', c.x, 112 - (Math.floor(t * 5) % 2), '#ffe680', { c: 1, sh: '#000' }); R(c.x - 11, 126, 22 * (1 - c.over / 4.5), 1, '#ff4040'); }
+      });
+      rivals.forEach(r => {
+        npc('rival', r.x, 148, r.ko ? 0 : r.walk, { hat: '#1e7f42', mad: true });
+        if (r.steal > 0 && !r.ko) { R(r.x - 8, 123, 16, 2, '#000'); R(r.x - 8, 123, 16 * r.steal / 2.4, 2, '#ff4040'); }
+      });
+      if (hidden) {
+        g.globalAlpha = .55; frutti(x, 136, { outfit: 'pimp' }); g.globalAlpha = 1;
+        text('HIDING', x, 88, '#9fe8ff', { c: 1, sh: '#000' });
+      } else {
+        frutti(x, 150, { outfit: 'pimp', step: moving ? t : 0 });
+        // cane
+        const sw = swing > 0 ? 1 : 0;
+        if (sw) { R(x + face * 9 - (face < 0 ? 16 : 0), 132, 16, 2, '#ffe680'); R(x + face * 24 - 1, 130, 3, 3, '#fff'); }
+        else { R(x + face * 10, 134, 1, 16, '#ffe680'); R(x + face * 10 - 1, 133, 3, 2, '#fff'); }
+        const door = DOORS.find(d => Math.abs(d - x) < 14);
+        if (door != null && (warn || cop)) text('^ HIDE', x, 106, '#9fe8ff', { c: 1, sh: '#000' });
+      }
+      // street cop
+      if (cop) {
+        const cx = cop.x, cy = 158;
+        R(cx - 30, cy + 2, 60, 12, '#e8e8f0'); R(cx - 16, cy - 6, 32, 9, '#23304f'); R(cx - 14, cy - 5, 13, 6, '#8ac8e8'); R(cx + 1, cy - 5, 13, 6, '#8ac8e8');
+        R(cx - 30, cy + 8, 60, 2, '#27389a'); const bl = Math.floor(t * 10) % 2; R(cx - 8, cy - 9, 8, 3, bl ? '#ff2030' : '#601018'); R(cx, cy - 9, 8, 3, bl ? '#203060' : '#3080ff');
+        R(cx - 22, cy + 12, 9, 5, '#000'); R(cx + 13, cy + 12, 9, 5, '#000');
+        const vis = g.globalAlpha; g.globalAlpha = .25; R(cx + cop.dir * 30 - (cop.dir < 0 ? 44 : 0), cy + 3, 44, 8, '#ffffa0'); g.globalAlpha = vis;
+      }
+      if (warn) { if (Math.floor(t * 8) % 2) { R(0, 14, W, 11, '#3f5fd8'); text('5-0! COPS COMING. GET IN A DOORWAY', W / 2, 17, '#fff', { c: 1 }); } }
+      // HUD strip
+      text('LOST CREW', 4, 172, '#ff9ad0', { sh: '#000' });
+      for (let i = 0; i < 3; i++) R(46 + i * 7, 172, 5, 5, i < lost ? '#ff4040' : '#3a3650');
+      if (combo > 1) text('STYLE X' + (1 + combo * .25).toFixed(2), 316, 172, '#ffe680', { r: 1, sh: '#000' });
+    }
+  };
+}
+
+/* --- heist --------------------------------------------------------- */
+const VAULT_BG = layer(r => {
+  r(0, 0, W, 110, '#38425a');
+  for (let y = 14; y < 110; y += 16) for (let x = (y / 16 | 0) % 2 * 16; x < W; x += 32) { r(x, y, 31, 15, '#414c66'); r(x, y, 31, 1, '#505c78'); r(x + 2, y + 2, 1, 1, '#2a3244'); r(x + 28, y + 12, 1, 1, '#2a3244'); }
+  r(0, 110, W, 70, '#20242f');
+  for (let x = 0; x < W; x += 20) r(x, 110, 1, 70, '#2a2f3d');
+  r(0, 110, W, 2, '#59647f');
+  // round vault door, swung open
+  r(10, 26, 72, 84, '#232a3a'); r(14, 30, 64, 80, '#0d101a');
+  r(80, 22, 12, 88, '#7f8aa4'); r(82, 24, 8, 84, '#a0abc4');
+});
+function drawSafe(x, y, state, t) {
+  // state: 0 locked, 1 current, 2 open
+  R(x, y, 30, 40, OUT); R(x + 1, y + 1, 28, 38, state === 1 ? '#6a7690' : '#4a5470'); R(x + 1, y + 1, 28, 2, '#8a96b0');
+  if (state === 2) {
+    R(x + 4, y + 5, 22, 30, '#0d0f18');
+    R(x + 6, y + 27, 8, 8, '#2f7a4a'); R(x + 16, y + 29, 8, 6, '#2f7a4a');
+  } else {
+    R(x + 5, y + 8, 20, 22, '#3a4258'); R(x + 11, y + 14, 8, 8, OUT); R(x + 12, y + 15, 6, 6, state === 1 ? '#ffe680' : '#8a96b0');
+    const a = t * 6; R(x + 15 + Math.cos(a) * 2, y + 18 + Math.sin(a) * 2, 1, 1, OUT);
+  }
+  if (state === 1) { R(x - 1, y - 2, 32, 1, '#ffe680'); }
+  R(x + 3, y + 40, 4, 2, OUT); R(x + 23, y + 40, 4, 2, OUT);
+}
+function gameHeist(run) {
+  const LOOT = [2500, 4500, 8000, 14000, 24000, 40000];
+  let phase = 'crack', safe = 0, tumbler = 0, needle = .1, dir = 1, zone = 0, width = .26, flashBar = 0, t = 0, opened = [], reason = '';
+  const setZone = () => {
+    const sp = 1.15 + safe * .3 + tumbler * .1; width = Math.max(.09, .25 - safe * .028) / Math.sqrt(run.spd);
+    zone = rand(.05, .95 - width); nspeed = sp * Math.sqrt(run.spd);
+  };
+  let nspeed = 1.2; setZone();
+  // getaway
+  let lane = 1, cx = 120, hp = 3, dist = 0, len = 0, scroll = 0, traf = [], tSpawn = 0, cSpawn = 2, inv = 0, cash = [], kSpawn = 1, warns = [];
+  const LX = l => 94 + l * 44;
+  function startRoad(msg) {
+    phase = 'road'; reason = msg; cx = LX(1); lane = 1; len = 15 + run.heat * 10 + safe; dist = 0;
+    sfx('siren'); pop(msg, W / 2, 60, '#ff6a6a');
+  }
+  function hitCar() {
+    if (inv > 0) return;
+    hp--; inv = 1.1; const lost = Math.round(run.take * .14); run.take -= lost;
+    pop('-' + money(lost), cx, 118, '#ff6a6a'); sfx('crash'); bump(6); flashOn('#fff', .4); burst(cx, 140, 14, ['#ffe680', '#7fe07a', '#fff']);
+    if (hp <= 0) run.bust('WRECKED!');
+  }
+  function drawCar(x, y, body, dark, o = {}) {
+    x = Math.round(x); y = Math.round(y);
+    R(x - 10, y - 15, 20, 30, OUT); R(x - 9, y - 14, 18, 28, body); R(x - 9, y - 14, 2, 28, dark); R(x + 7, y - 14, 2, 28, dark);
+    R(x - 7, y - 8, 14, 7, '#8ac8e8'); R(x - 7, y + 5, 14, 5, '#5a8ab0'); R(x - 6, y - 1, 12, 6, dark);
+    R(x - 11, y - 11, 2, 6, '#000'); R(x + 9, y - 11, 2, 6, '#000'); R(x - 11, y + 6, 2, 6, '#000'); R(x + 9, y + 6, 2, 6, '#000');
+    if (o.up) { R(x - 8, y - 15, 4, 1, '#ffffa0'); R(x + 4, y - 15, 4, 1, '#ffffa0'); } else { R(x - 8, y + 14, 4, 1, '#ff3040'); R(x + 4, y + 14, 4, 1, '#ff3040'); }
+    if (o.cop) { const b = Math.floor(t * 10) % 2; R(x - 7, y - 1, 7, 3, b ? '#ff2030' : '#601018'); R(x, y - 1, 7, 3, b ? '#203060' : '#3080ff'); }
+  }
+  return {
+    update(dt) {
+      t += dt; flashBar = Math.max(0, flashBar - dt * 4);
+      if (phase === 'crack') {
+        needle += dir * nspeed * dt;
+        if (needle >= 1) { needle = 1; dir = -1; } if (needle <= 0) { needle = 0; dir = 1; }
+        run.heat = clamp(run.heat + dt * (.014 + safe * .004), 0, 1);
+        if (hit.a) {
+          if (needle >= zone && needle <= zone + width) {
+            tumbler++; flashBar = 1; sfx('click'); burst(40 + needle * 240, 145, 5, ['#7fe07a', '#fff']);
+            if (tumbler >= 3) {
+              const amt = Math.round(LOOT[safe] * run.pay); run.take += amt;
+              opened.push(safe); pop('+' + money(amt), 124 + safe * 32, 56); coins(124 + safe * 32, 80, 14); sfx('win');
+              safe++; tumbler = 0;
+              if (safe >= LOOT.length) startRoad('VAULT CLEANED! GO!'); else phase = 'choice';
+            } else setZone();
+          } else {
+            run.heat = clamp(run.heat + .17, 0, 1); sfx('bad'); bump(3); flashOn('#ff2030', .3); pop('ALARM +17%', 160, 118, '#ff6a6a'); setZone();
+          }
+        }
+        if (run.heat >= 1) startRoad('SIRENS! RUN!');
+      } else if (phase === 'choice') {
+        run.heat = clamp(run.heat + dt * .05, 0, 1);
+        if (hit.right || hit.a) { phase = 'crack'; setZone(); sfx('ok'); }
+        if (hit.down) startRoad('TIME TO GO!');
+        if (run.heat >= 1) startRoad('SIRENS! RUN!');
+      } else {
+        dist += dt; inv = Math.max(0, inv - dt);
+        const sp = 170 + dist * 5; scroll += sp * dt;
+        if (hit.left) { lane = Math.max(0, lane - 1); sfx('move'); }
+        if (hit.right) { lane = Math.min(3, lane + 1); sfx('move'); }
+        cx += (LX(lane) - cx) * Math.min(1, dt * 16);
+        // traffic
+        tSpawn -= dt;
+        if (tSpawn <= 0) {
+          const free = [0, 1, 2, 3].filter(l => !traf.some(c => c.lane === l && c.y < 40 && !c.cop));
+          const n = dist > 8 && Math.random() < .4 ? 2 : 1;
+          for (let i = 0; i < n && free.length > 1; i++) { const l = free.splice(Math.floor(Math.random() * free.length), 1)[0]; traf.push({ lane: l, y: -20, v: sp * .55, c: pick(['#e8b830', '#4cb0c8', '#d060a8', '#70c060', '#e87840']) }); }
+          tSpawn = rand(.55, .95) * (1 - run.heat * .2);
+        }
+        cSpawn -= dt;
+        if (cSpawn <= 0) {
+          warns.push({ lane, t: .75 });
+          cSpawn = rand(2.8, 4.4) * (1 - run.heat * .45);
+        }
+        warns = warns.filter(w => { w.t -= dt; if (w.t <= 0) { traf.push({ lane: w.lane, y: 200, v: -170, cop: true }); sfx('siren'); return false; } return true; });
+        traf.forEach(c => { c.y += c.v * dt; if (Math.abs(c.y - 150) < 26 && Math.abs(LX(c.lane) - cx) < 20) hitCar(); });
+        traf = traf.filter(c => c.y < 210 && c.y > -60);
+        // cash bags
+        kSpawn -= dt;
+        if (kSpawn <= 0) { cash.push({ lane: Math.floor(rand(0, 4)), y: -10 }); kSpawn = rand(1.2, 2.4); }
+        cash = cash.filter(c => {
+          c.y += sp * dt;
+          if (Math.abs(c.y - 150) < 18 && Math.abs(LX(c.lane) - cx) < 16) { const a = Math.round((500 + safe * 600) * run.pay); run.take += a; pop('+' + money(a), cx, 118); coins(cx, 134); sfx('coin'); return false; }
+          return c.y < 200;
+        });
+        if (run.done) return;
+        if (dist >= len) { run.finish('SAFEHOUSE!'); }
+      }
+    },
+    draw() {
+      if (phase !== 'road') {
+        g.drawImage(VAULT_BG, 0, 0);
+        // lights when alarm high
+        if (run.heat > .5 && Math.floor(t * 4) % 2) { g.globalAlpha = (run.heat - .4) * .4; R(0, 14, W, 96, '#ff2030'); g.globalAlpha = 1; }
+        for (let i = 0; i < LOOT.length; i++) drawSafe(108 + i * 34, 68, i < safe ? 2 : i === safe ? 1 : 0, t + i);
+        frutti(58, 110, { outfit: 'heist' });
+        if (safe > 0) { R(68, 96, 13, 14, OUT); R(69, 97, 11, 12, '#b89a60'); text('$', 73, 100, '#3a2a10'); }
+        // panel
+        uiWindow(6, 120, 308, 54);
+        if (phase === 'crack') {
+          text('SAFE ' + (safe + 1) + ' OF 6', 14, 125, UI.white, { sh: UI.ink });
+          text('WORTH ' + money(LOOT[safe] * run.pay), W - 14, 125, UI.yellow, { r: 1, sh: UI.ink });
+          for (let i = 0; i < 3; i++) { R(128 + i * 22, 122, 18, 7, OUT); R(129 + i * 22, 123, 16, 5, i < tumbler ? '#7fe07a' : '#333a4c'); }
+          const bx = 20, bw = 280, by = 137;
+          R(bx - 2, by - 2, bw + 4, 18, UI.white); R(bx - 1, by - 1, bw + 2, 16, UI.ink);
+          R(bx + zone * bw, by, width * bw, 14, flashBar ? UI.white : '#6fdc8c');
+          if (width * bw > 34) text('SAFE ZONE', bx + (zone + width / 2) * bw, by + 4, UI.ink, { c: 1 });
+          const nx = bx + needle * bw;
+          R(nx - 3, by - 5, 6, 24, UI.ink); R(nx - 2, by - 4, 4, 22, UI.yellow);
+          text('PRESS SPACE IN THE GREEN _', W / 2, 160, UI.white, { c: 1, sh: UI.ink });
+        } else {
+          text('SAFE OPEN. TAKE SO FAR ' + money(run.take), W / 2, 124, '#ffe680', { c: 1 });
+          const on = Math.floor(t * 6) % 2;
+          R(14, 136, 142, 32, on ? '#3b8a68' : '#2e6e54'); text('> CRACK NEXT', 85, 142, '#fff', { c: 1, s: 1 });
+          text('+' + money(LOOT[safe] * run.pay) + ' MORE', 85, 154, '#fff', { c: 1 });
+          R(164, 136, 142, 32, UI.deep); text('_ RUN FOR IT', 235, 142, '#fff', { c: 1 });
+          text('DRIVE WITH ' + money(run.take), 235, 154, '#fff', { c: 1 });
+          
+        }
+      } else {
+        // road
+        R(0, 0, W, H, '#2a4a30');
+        const off = scroll % 40;
+        for (let y = -40 + off; y < H; y += 40) {
+          R(4, y, 40, 26, '#39405a'); R(10, y + 4, 8, 6, '#ffd36a'); R(26, y + 12, 8, 6, '#ffd36a');
+          R(276, y + 10, 40, 26, '#4a3a5a'); R(284, y + 14, 8, 6, '#ffd36a'); R(300, y + 22, 8, 6, '#232338');
+          R(58, y + 20, 8, 8, '#1e6a34'); R(254, y + 2, 8, 8, '#1e6a34');
+        }
+        R(70, 0, 180, H, '#33333f'); R(70, 0, 3, H, '#e8e8e8'); R(247, 0, 3, H, '#e8e8e8');
+        for (let l = 1; l < 4; l++) for (let y = -30 + scroll % 30; y < H; y += 30) R(72 + l * 44, y, 2, 14, '#c8c8c8');
+        cash.forEach(c => { R(LX(c.lane) - 5, c.y - 5, 10, 10, OUT); R(LX(c.lane) - 4, c.y - 4, 8, 8, '#2f7a4a'); text('$', LX(c.lane) - 1, c.y - 2, '#ffe680'); });
+        traf.forEach(c => { if (c.cop) drawCar(LX(c.lane), c.y, '#e8e8f0', '#27389a', { up: true, cop: true }); else drawCar(LX(c.lane), c.y, c.c, '#00000055'); });
+        warns.forEach(w => { if (Math.floor(w.t * 12) % 2) { R(LX(w.lane) - 6, 164, 12, 12, '#ff2030'); text('!', LX(w.lane), 167, '#fff'); } });
+        if (!(inv > 0 && Math.floor(t * 14) % 2)) {
+          drawCar(cx, 150, '#d8304a', '#9a1636', { up: true });
+          g.drawImage(MINI, Math.round(cx) - 5, 142);
+          R(Math.round(cx) - 5, 142, 10, 2, '#15151f');
+        }
+        // gauge
+        R(258, 22, 54, 7, OUT); R(259, 23, 52 * clamp(dist / len, 0, 1), 5, '#7fe07a'); text('SAFEHOUSE', 285, 31, '#fff', { c: 1, sh: '#000' });
+        text('CAR', 6, 22, '#fff', { sh: '#000' }); for (let i = 0; i < 3; i++) R(6 + i * 10, 30, 8, 6, i < hp ? '#d8304a' : '#333');
+        text('LEFT / RIGHT', 6, 170, '#fff', { sh: '#000' });
+      }
+    }
+  };
+}
+
+/* --- bank fraud ---------------------------------------------------- */
+const BANKS = ['#2f7ae0', '#3fbf6a', '#e8a020', '#d060a8'];
+const NAMES = [['M. PEACH', 'M. PEECH'], ['A. PLUMB', 'A. PLUM'], ['B. MANGO', 'B. MANGOE'], ['D. FIGG', 'D. FIG'], ['L. QUINCE', 'L. QUINSE'], ['R. MELON', 'R. MELLON'], ['G. CHERRY', 'G. CHERY'], ['T. LYCHEE', 'T. LITCHI']];
+function makeSig() { const pts = []; for (let i = 0; i < 8; i++) pts.push([3 + i * 6, 2 + Math.floor(Math.random() * 11)]); return pts; }
+function fakeSig(s) { const c = s.map(p => p.slice()); for (let k = 0; k < 2; k++) { const i = 1 + Math.floor(Math.random() * 6); c[i][1] = c[i][1] > 7 ? c[i][1] - 7 : c[i][1] + 7; } return c; }
+function drawSig(pts, x, y, col) {
+  g.fillStyle = col;
+  for (let i = 0; i < pts.length - 1; i++) {
+    let [x0, y0] = pts[i], [x1, y1] = pts[i + 1]; const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) || 1;
+    for (let k = 0; k <= n; k++) g.fillRect(Math.round(x + x0 + (x1 - x0) * k / n), Math.round(y + y0 + (y1 - y0) * k / n), 1, 1);
+  }
+}
+const FRAUD_BG = layer(r => {
+  const rn = seeded(5);
+  r(0, 0, W, H, '#0e1a18');
+  // night window
+  r(6, 18, 84, 60, '#2a3a38'); r(8, 20, 80, 56, '#101c34');
+  let x = 8; while (x < 88) { const w = 8 + rn() * 12 | 0, h = 12 + rn() * 36 | 0; r(x, 76 - h, w, h, '#1a2848'); for (let wy = 78 - h; wy < 74; wy += 5) for (let wx = x + 2; wx < x + w - 2; wx += 4) if (rn() < .4) r(wx, wy, 2, 2, '#ffd36a'); x += w; }
+  r(47, 20, 2, 56, '#2a3a38'); r(8, 47, 80, 2, '#2a3a38');
+  // desk
+  // right wall panel
+  r(98, 14, 222, 166, '#132320');
+  for (let i = 14; i < H; i += 4) r(98, i, 222, 1, '#16291f');
+  r(97, 14, 1, 166, '#2a4a40');
+});
+function gameFraud(run) {
+  let target, check = null, fuse = 0, fuseMax = 3.4, n = 0, mult = 1, sinceTarget = 0, anim = 0, t = 0, outcome = null, cool = 0, typeT = 0;
+  function newTarget() {
+    const names = pick(NAMES);
+    target = { name: names[0], alt: names[1], bank: Math.floor(Math.random() * 4), sig: makeSig() };
+    sinceTarget = 0;
+  }
+  function newCheck() {
+    const fake = Math.random() < .28 + Math.min(n * .01, .15);
+    const c = { name: target.name, bank: target.bank, sig: target.sig, fake };
+    if (fake) {
+      const tell = Math.floor(Math.random() * 3);
+      if (tell === 0) c.name = target.alt;
+      if (tell === 1) c.bank = (target.bank + 1 + Math.floor(Math.random() * 3)) % 4;
+      if (tell === 2) c.sig = fakeSig(target.sig);
+    }
+    c.amount = Math.max(1, Math.round(380 * Math.pow(1.14, n) * mult * run.pay));
+    check = c; anim = 0; outcome = null;
+    fuseMax = Math.max(1.7, 3.5 - n * .055) / Math.sqrt(run.spd); fuse = fuseMax;
+  }
+  newTarget(); newCheck();
+  function resolve(action) {
+    const c = check; let good = false, msg = '', col = '#fff';
+    if (action === 'cash') {
+      if (!c.fake) {
+        good = true; run.take += c.amount; pop('+' + money(c.amount), 210, 56); coins(210, 90, 12); sfx('coin');
+      } else {
+        run.heat = clamp(run.heat + .26, 0, 1); sfx('bad'); bump(5); flashOn('#ff2030', .45); pop('HONEYPOT! TRACE +26%', 210, 58, '#ff6a6a');
+      }
+    } else if (action === 'shred') {
+      if (c.fake) { good = true; run.heat = clamp(run.heat - .05, 0, 1); pop('CLEAN SHRED -5%', 210, 58, '#7fe07a'); sfx('shred'); }
+      else { sfx('shred'); pop('THAT ONE WAS REAL', 210, 58, '#ffb060'); }
+    } else {
+      run.heat = clamp(run.heat + .07, 0, 1); sfx('bad'); pop('TOO SLOW +7%', 210, 58, '#ff6a6a');
+    }
+    if (good) n++;
+    outcome = { a: action, t: .22 };
+    if (run.heat >= 1) { run.bust('FEDS AT THE DOOR!'); return; }
+    if (++sinceTarget >= 6) { newTarget(); cool = .55; pop('NEW TARGET', 170, 34, '#9fe8ff'); sfx('go'); }
+  }
+  return {
+    update(dt) {
+      t += dt; anim += dt; typeT += dt;
+      run.heat = clamp(run.heat + dt * (.012 + n * .0009), 0, 1);
+      if (run.heat >= 1) { run.bust('FEDS AT THE DOOR!'); return; }
+      if (hit.down && run.take > 0) { run.finish('VANISHED!'); return; }
+      if (cool > 0) { cool -= dt; if (cool <= 0) newCheck(); return; }
+      if (outcome) { outcome.t -= dt; if (outcome.t <= 0 && !run.done) newCheck(); return; }
+      fuse -= dt;
+      if (fuse <= 0) resolve('none');
+      else if (hit.right) resolve('cash');
+      else if (hit.left) resolve('shred');
+    },
+    draw() {
+      g.drawImage(FRAUD_BG, 0, 0);
+      // feds outside when hot
+      if (run.heat > .65) {
+        const n2 = 1 + Math.floor((run.heat - .65) * 8);
+        for (let i = 0; i < n2; i++) npc('cop', 20 + i * 18, 76, t, { shades: true });
+        if (Math.floor(t * 6) % 2) { g.globalAlpha = .25; R(8, 20, 80, 56, '#ff2030'); g.globalAlpha = 1; }
+      }
+      frutti(26, 131 + (Math.floor(typeT * 8) % 2), { outfit: 'fraud' });
+      R(0, 126, 96, 54, '#3a2618'); R(0, 126, 96, 3, '#5e4028'); R(4, 134, 88, 1, '#2a1a10');
+      // laptop
+      R(44, 123, 44, 3, '#555a68'); R(48, 101, 36, 22, OUT); R(49, 102, 34, 20, '#223'); for (let i = 0; i < 4; i++) R(52, 105 + i * 4, 10 + ((t * 8 + i * 3) % 16), 1, '#6fe89a');
+      // target card
+      R(102, 18, 214, 34, OUT); R(103, 19, 212, 32, '#0a1412'); R(103, 19, 212, 1, '#6fe89a');
+      text('TARGET', 107, 22, '#6fe89a');
+      text(target.name, 107, 32, '#fff', { s: 1 }); R(107, 41, 40, 5, BANKS[target.bank]);
+      text('SIG', 186, 22, '#6fe89a'); drawSig(target.sig, 186, 31, '#fff');
+      text('BANK', 244, 22, '#6fe89a'); R(244, 30, 62, 14, BANKS[target.bank]); text('BANK OF ' + 'FRUIT', 275, 34, '#fff', { c: 1 });
+      // check
+      const off = outcome ? (outcome.a === 'cash' ? (0.22 - outcome.t) * 900 : outcome.a === 'shred' ? -(0.22 - outcome.t) * 900 : 0) : clamp((1 - anim * 10), 0, 1) * 60;
+      if (cool <= 0 && check) {
+        const x = 106 + off, y = 60;
+        R(x, y, 206, 72, OUT); R(x + 1, y + 1, 204, 70, '#f4efd8');
+        R(x + 1, y + 1, 204, 11, BANKS[check.bank]); text('BANK OF FRUIT', x + 5, y + 4, '#fff');
+        text('NO. ' + (1000 + n * 7), x + 200, y + 4, '#fff', { r: 1 });
+        text('PAY TO: FRUTTI LLC', x + 5, y + 18, '#333');
+        text(money(check.amount), x + 200, y + 18, '#116633', { r: 1, s: 2 });
+        text('FROM:', x + 5, y + 33, '#666'); text(check.name, x + 28, y + 33, '#111');
+        R(x + 5, y + 62, 90, 1, '#888');
+        text('SIGNED', x + 5, y + 45, '#666');
+        drawSig(check.sig, x + 36, y + 46, '#142060');
+        R(x + 110, y + 62, 90, 1, '#888');
+        if (outcome && outcome.a === 'shred') { g.globalAlpha = .6; for (let i = 0; i < 20; i++) R(x + i * 10, y, 2, 72, '#132320'); g.globalAlpha = 1; }
+      }
+      // fuse
+      R(106, 136, 206, 4, '#000'); if (!outcome && cool <= 0) R(106, 136, 206 * clamp(fuse / fuseMax, 0, 1), 4, fuse / fuseMax < .3 ? '#ff4040' : '#6fe89a');
+      // actions
+      R(106, 146, 64, 14, '#6a2020'); text('< SHRED', 138, 150, '#fff', { c: 1 });
+      R(248, 146, 64, 14, '#1e6a3a'); text('CASH >', 280, 150, '#fff', { c: 1 });
+      R(174, 146, 70, 14, '#6a5a10'); text('_ VANISH', 209, 150, '#ffe680', { c: 1 });
+      text('KEEP ' + money(run.take) + ' OR PUSH YOUR LUCK', 209, 167, '#9fe8c0', { c: 1 });
+      if (n > 0) text('STREAK ' + n, 6, 170, '#ffe680');
+    }
+  };
+}
+/* --- gambling ----------------------------------------------------- */
+const WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+const REDS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+const colorOf = n => n === 0 ? 'green' : REDS.has(n) ? 'red' : 'black';
+const POCKET = { red: '#d8304a', black: '#1c1440', green: '#2f9a5a' };
+const CASINO_BG = layer(r => {
+  r(0, 0, W, H, '#123f2c');
+  for (let y = 0; y < H; y += 4) for (let x = (y / 4 & 1) * 4; x < W; x += 8) r(x, y, 1, 1, '#17503a');
+  r(0, 14, W, 62, '#1c1440'); r(0, 74, W, 2, '#ffe680'); r(0, 76, W, 2, '#8a6a20');
+});
+function gameGamble(run) {
+  const BETS = [{ l: '25%', f: .25 }, { l: '50%', f: .5 }, { l: 'ALL IN', f: 1 }], CALLS = ['red', 'black', 'green'];
+  let phase = 'bet', bet = 2, call = 0, pos = 0, from = 0, to = 0, st = 0, T = 2.4, landed = null, pot = 0, stake = 0, allIn = false, t = 0, lastPocket = 0, rides = 0;
+  const stakeFor = i => Math.max(1, i === 2 ? getMoney() : Math.floor(getMoney() * BETS[i].f));
+  const mult = () => CALLS[call] === 'green' ? (allIn ? 30 : 14) : 2;
+  function spin() {
+    phase = 'spin'; st = 0; from = pos;
+    const target = Math.floor(Math.random() * 37);
+    landed = WHEEL[target];
+    to = Math.ceil(from / 37) * 37 + 111 + target;
+    sfx('go');
+  }
+  return {
+    update(dt) {
+      t += dt;
+      if (phase === 'bet') {
+        if (hit.left) { bet = Math.max(0, bet - 1); sfx('move'); }
+        if (hit.right) { bet = Math.min(2, bet + 1); sfx('move'); }
+        if (hit.up) { call = (call + 2) % 3; sfx('move'); }
+        if (hit.down) { call = (call + 1) % 3; sfx('move'); }
+        if (hit.a) {
+          stake = stakeFor(bet); allIn = bet === 2;
+          if (!spendMoney(stake)) { sfx('bad'); return; }
+          pot = stake; run.stake = stake; spin();
+        }
+      } else if (phase === 'spin') {
+        st += dt;
+        const k = clamp(st / T, 0, 1), e = 1 - Math.pow(1 - k, 3);
+        pos = from + (to - from) * e;
+        if (Math.floor(pos) !== lastPocket) { lastPocket = Math.floor(pos); sfx('click'); }
+        if (k >= 1) {
+          if (colorOf(landed) === CALLS[call]) {
+            const m = mult(); pot *= m; run.take = pot - stake; rides++;
+            pop('X' + m + '!', W / 2, 92, '#ffe680'); coins(W / 2, 100, 18); sfx('win'); bump(3);
+            phase = 'won';
+          } else {
+            run.take = 0; pot = 0; run.bust('THE HOUSE WINS');
+          }
+        }
+      } else if (phase === 'won') {
+        if (hit.up) { call = (call + 2) % 3; sfx('move'); }
+        if (hit.down) { call = (call + 1) % 3; sfx('move'); }
+        if (hit.left) run.finish('CASHED OUT!');
+        else if (hit.right || hit.a) spin();
+      }
+    },
+    draw() {
+      g.drawImage(CASINO_BG, 0, 0);
+      // the wheel, as a strip passing under the marker
+      const PW = 24, cx = W / 2, cy = 45, fl = pos - Math.floor(pos);
+      for (let i = -8; i <= 8; i++) {
+        const n = WHEEL[((Math.floor(pos) + i) % 37 + 37) % 37], x = cx + (i - fl) * PW - PW / 2;
+        R(x, cy - 18, PW - 1, 36, POCKET[colorOf(n)]); R(x, cy - 18, PW - 1, 2, '#ffffff30');
+        text(n, x + PW / 2 - 1, cy - 2, '#fdfbff', { c: 1 });
+      }
+      R(cx - 1, 20, 3, 50, '#ffe680'); R(cx - 4, 18, 9, 3, '#ffe680'); R(cx - 4, 69, 9, 3, '#ffe680');
+      frutti(32, 170, { outfit: 'gamble' });
+      uiWindow(64, 84, 248, 88);
+      if (phase === 'bet') {
+        text('BET', 72, 91, '#ffe680');
+        BETS.forEach((b, i) => { const x = 96 + i * 72, on = i === bet; R(x, 88, 66, 22, on ? '#ff8fc0' : '#1c1440'); text(b.l, x + 33, 91, on ? '#1c1440' : '#fdfbff', { c: 1 }); text(money(stakeFor(i)), x + 33, 100, on ? '#1c1440' : '#ffe680', { c: 1 }); });
+        text('CALL', 72, 117, '#ffe680');
+        CALLS.forEach((c, i) => { const x = 96 + i * 72, on = i === call; R(x, 114, 66, 16, OUT); R(x + 1, 115, 64, 14, POCKET[c]); if (on) { R(x, 114, 66, 1, '#ffe680'); R(x, 129, 66, 1, '#ffe680'); R(x, 114, 1, 16, '#ffe680'); R(x + 65, 114, 1, 16, '#ffe680'); } text(c, x + 33, 119, '#fdfbff', { c: 1 }); });
+        const m = CALLS[call] === 'green' ? (bet === 2 ? 30 : 14) : 2;
+        text('PAYS X' + m + ' = ' + money(stakeFor(bet) * m), 188, 138, '#fdfbff', { c: 1 });
+        if (bet === 2) text('ALL IN: LOSE AND YOU ARE AT ZERO', 188, 148, '#ff8fc0', { c: 1 });
+        if (Math.floor(t * 2.5) % 2 === 0) text('SPACE TO SPIN', 188, 160, '#ffe680', { c: 1 });
+      } else if (phase === 'spin') {
+        text('ON ' + CALLS[call], 188, 104, UI.white, { c: 1, s: 2, sh: UI.ink });
+        text('POT ' + money(pot), 188, 128, '#ffe680', { c: 1, s: 2 });
+      } else {
+        text('POT ' + money(pot), 188, 92, '#ffe680', { c: 1, s: 2 });
+        text('LET IT RIDE ON', 188, 110, '#fdfbff', { c: 1 });
+        CALLS.forEach((c, i) => { const x = 104 + i * 58, on = i === call; R(x, 118, 52, 11, on ? '#ffe680' : OUT); R(x + 1, 119, 50, 9, POCKET[c]); text(c, x + 26, 121, '#fdfbff', { c: 1 }); });
+        R(72, 136, 112, 26, '#2f9a5a'); text('< CASH OUT', 128, 141, '#fdfbff', { c: 1 }); text(money(pot), 128, 151, '#ffe680', { c: 1 });
+        R(192, 136, 112, 26, '#e8487f'); text('RIDE IT >', 248, 141, '#fdfbff', { c: 1 }); text('WIN ' + money(pot * mult()), 248, 151, '#ffe680', { c: 1 });
+      }
+    }
+  };
+}
+const GAMES = { gamble: gameGamble, dogs: gameDogs, deal: gameDeal, pimp: gamePimp, heist: gameHeist, fraud: gameFraud };
+
+/* ---------------------------------------------------------------- scenes */
+let scene = null, wipe = 0;
+function go(s) { scene = s; wipe = 1; floats = []; parts = []; }
+
+/* The site's message window: blue panel, stepped white border, ink edge. */
+const UI = { ink: '#1c1440', win: '#24287e', lite: '#4a4fc0', white: '#fdfbff', pink: '#ff8fc0', deep: '#e8487f', yellow: '#ffe680' };
+function uiWindow(x, y, w, h) {
+  R(x - 2, y, w + 4, h, UI.ink); R(x, y - 2, w, h + 4, UI.ink);
+  R(x - 1, y, w + 2, h, UI.white); R(x, y - 1, w, h + 2, UI.white);
+  const bands = 6;
+  for (let i = 0; i < bands; i++) R(x, y + i * h / bands, w, h / bands + 1, ['#4449b4', '#3e43a8', '#383c9c', '#323690', '#2c3087', '#24287e'][i]);
+}
+function nameplate(str, x, y) {
+  const w = tw(str) + 10;
+  R(x - 2, y - 2, w + 4, 13, UI.white); R(x - 1, y - 1, w + 2, 11, UI.ink); R(x, y, w, 9, UI.pink);
+  text(str, x + 5, y + 2, UI.ink);
+}
+function vnChoice(x, y, w, h, on) {
+  R(x, y, w, h, UI.ink); R(x + 1, y + 1, w - 2, h - 2, on ? '#ffd6e8' : UI.white); R(x + 1, y + h - 3, w - 2, 2, on ? UI.pink : '#d8d4f0');
+}
+const CHECKER = layer(r => { r(0, 0, W, H, '#231a4c'); for (let y = 0; y < H; y += 8) for (let x = (y / 8 & 1) * 8; x < W; x += 16) r(x, y, 8, 8, '#2a2058'); });
+const ARCADE = new Image();
+ARCADE.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAC0CAYAAADl5PURAAANiElEQVR4nO2dvY9kRxXF+w8gQkQICSQyEyzxJrYIl4SAwHLOpqTWJptbSE4dWDKRIdyQjE2QCAkh2wgRIgvixrP4japr3utXH7fqftRvpKO7d3am65xbr86cfjPTc/nxD39xLcHPfvpxEXg8Ho/H4/G8PN7FOkEej8fj8Xi8UY+HAfJ4PB6Pt+zjXUo/sBTXb96ahrRe5mcL2vNhfr7md3nx7PX7f0hV7QGdQVov87NVtefD/HzNTzwBAgCAF4gnQCqVSvVSSYAAgGVBAqRSqcvWS9psoKenp1+hJwFSqdRl68UCCSqVStWoJEAqlbpsJQFSqdRl600C3EBPv2r/wU9+BRyidb9JgFRqUrUPMmhD635fUmcEYHVoH2TQhtb9JgFSqUlND9UnL96EQERNuS4SIAACiGgWETXlulr3mwRIpSY1ollE1JTrIgECIIDcLP7wm7fua6rJAp8Rulr3GwMEIMFeWtoOndf+yNSt8GvtTRvgqwQjPwcASZAA/VRzBviqABKfA8Ao7JmFdtKRTEoW+Ej1Igb46sMvbt7R2uemdX337yfIDa3kY598jhBfevq9ngTop+4ZYO1+iyXAJ2b2+s9P8d3/bZ9T8rGkQDATEc0ioqmLJcDtHz1fOW/Mb8/MDsyt9GP3TFA7KdDH7HMDTA+d1/7I1K3wa+1TXa37LZIAqw2wBqRAMBEkQD9V9B5gc31WYIB/+9ctzt5/YICvenhSqQV1LwF6R0RNua7W/e5OgNXmdwZSIFDEkVlYedrX0kd8Wm8uAc4yQO2EQI1dI6aliJpyXSIJcHtnbX/XBHsNcMf8evnS0x/1Ec0ioqZcV+t+9yfAb+ssA+zlSaWe1dws/vv5H28Oncc+1WSBj1QvlgDNmCDmR1WuEdNSRE25rtb9FkmAL74zqS4T5Lu/VAP1yCwsJZ/afk+TJX6tvakEuNUmEyT5UY3UiGkpoqZcV+t+v0+AGx5NrLevMcEC8xPnR09/0B/dA/Rc9+4BRqhHCbBmv8UTYJUJkvyoxmpEs4ho6qIJcNhX1nsmSPKjN9hHNIuIpr6XAFv2e1gCrDJBkh/VSI1oFhFNXTQBDsc9E8x+0BkATeyZxQavfW7q2nyk+qMEWINHAxz9NGPXBHnaS2+sJwH6qXsJsHa/5yTADakJkvyAQRylJc+IqCnX1brfl9lfaXMDtPKVn57+AUcJcIPHPuLT+iMDrN3vuQnwwy+e/tGj2esDcAfpoQJ+0Lrf8w3wAZgfMArtgwxWMEAAjCI9VNr3uEbcK2v5/F8+/10XZuhq3W8MEIAEGOBiBvj2469u3kFPv3Kfm8X1L5831x7D6Fk3r6mmmTpG6dnT1brfJEAAEuylpe3Q1fathtG63lF/ZOqln//I6x+fmdCz9aJPgbW/8tLTW+gjJcDrf/76HjcJ8Ns+YgJs3W8SIAAJ9p4utiaVw0R0kqR6ktFmeilyA0wxMslK6ClNtq37/XgPkEql+kyAZ493zwBLEqGnBFhbL2mzgZ5+1b73GwYSyUl6nTMDPDPB1iTbqqe0HiXAmv0mAVKpSc0N8OaeWmXfm5hK15MwwPdofHxpPaW9WAJscU56+oi9RgLMk1TNOg/GdZbIig3wIAn2GuCsBNiy3yRAKjWp6aHqPfg9hlGE70xLLAFmSVAqAY6C+D1AKnX1asUAi54GDjTAdL1HXif3/Fp/TlDCAFv3mwRIpSbVigGSAOsMsHW/SYBUalJbDFA6GdWY3z0D3NatNsDMBIcZfe1cso8XS4AbtnfS06/aW0iAI5NStQH+82t1/iW6WvebBEilJhUDLE+As+/53dPVut839wD3nPJHP/hIFaVOboFnyVceCzwjzVO6j26A2lxG6Wrd79ME+HAxvnx3VcHD2qVO/vCxp398fRCqeb57qYKI85yRAKWTTvFvUHTeI7NmgNL3SsXvAe5B2wDP+KU8NQ9sFU9FA4w2T2lYMQtJRNSU62rd70cDPIqJVgzwLNZqH9jS2G3FAKPMU7qPaBa5plH37iz8HGDtfh8mwPR+TGpKo99yA9y7J3TE8+YgjX7LDmwVz9SYRr9lBhhlniTAdgOMApEEeC+pPP/gU3UD3DjcSyrbx2ge2I1DyTw1DTDKPEf1JWYhdW+u9vFa17VqgL1z2TPA2v2+mwD3DHD2U+D8wN7jqfmUrYqn4lPgKPMkAZYjoqYjA6xOgLUG2Ps2zQB732YZYO/bLAPsfcMATRjF3v+PSqAY4M4bBogBYoC2DNArVAyQp8BtB5anwBigBaPQ5mLOAL/57Oubd2y9VQPM+Vo7sCXztGSAXuc5qo9oFhE1HRlg7X4XJUBN1CQWeK7Dc0YCBH7QnADPkoAFPHA5S1YWkB5Y5jl2nqN67YMM2tC636cJ0AJKEosFwHMeTxIgSNGcADcnzKu1gwBPeFKp0vWSNhse+vwgfP97P5+K/CDk/LZ/W+TJPMfPk55eoi9OgNoHAZ7wpFKl6809wJIkMPpHNWqTwBHP1++uQ3GPZ9U83/x9KKTm+afrV0NRO096eom+OgFqGWAtTy0DrJ6nkgHW8tQyQO2EQI1dL0f/ac0Aa3lqJsCqeRpIgCU8NROg9iGhxq0kQBJgEU8SIDViJQGSAIt4kgCpEev7BLhhe6dFA8z5bb01A6yep4EEWDJPzQS4N096eomeBEgCLOJJAqRGrDcJMIU1A6zlaSEBFs1TMQHW8LSQAAGQBgmQBFjEkwRIjVhJgCTAIp4kQBARjwa4OeIGawaY87OaAKvnqZwAS+epbYBHfOnpe3oSIAmwiKe2AQIwApcjZ7RqgKXJSvseYPE8lQ2wdJ7a9wCP+NLT9/QkQBJgEU8SIIgIDBADLOKJAYKIwAAxwCKeGCCIiGoDnIXeAwvP2DwBkAAGCE+XPAGQQLEBaqLmwMJzDZ4ASAADhKdLngBI4IkBPlx0lgHPtXkCIIldA/z1R1+aRH5gtfnAcz5PACRxY4CWD0F6GOC5Jk/twwLiodkAr79984iaCzn9mb/0/S/fXR8heWDhGYen9mEB8YABwtMNT+3DAuIBA4SnG57ahwXEA/cA4emGp/ZhAfHwaIAeDsF2ELQ5wFOPq/aBAbFwY4AAWIf2gQGxcNG+oAEAQAsYIABgWVw+efH7awueP/u0GrPWmbkW82N+zM/v/C4WSXnYWA9redgzrg+uD821ThOghwvU6nBZz9ZarMfe5dhNgBGEWVuT9djDqOt51njRIrLKmp4uKk8X8ipretpLj9dP1T1AC4S9bIy3g8Z87a7JfMetOfybIF4vHNblgLJu/HWHfRPEywAsrbuiZq4vri/NdQ8NcMVNYm17Fyhrs/bItS9SD25R3Ky1tdf3rN3z3NHuc+10/ebfBImwCazP+qy/9vrTvwssRdwCB+31LXDQXt8Ch971LXDQXl+LQ7UBaouEAxyiHD446HMoegoc5SLlwNrjYYFDJB4WOHjicdcAvYiAx9o8LHGBhy8eT54Cc0Ha5sL+2ObC/tjmkj9m9+8CW924iFwsXUgRuUS8ZixxsXjNNH8X2Low+PjgY4kLfHzxkeDRZYBSw4i6QfDhGoLPeD49nJoMkIsWTtb4wIlrqYVT1W+CMDy/F77VWVnkxP755lTDa9rPAa5yQcDLPyd4rcNr+M8BrjRsy9xW4GWZ2wq8LHM7WkP0b4KsfIHDTZ8X3OBWy0305bC8HGDr/CxzW+mwWOdnmZt1fttjdr8c1spDhB/84Oebn9gPQnsQa52fB47W+XngKM3PA0er/EQM0Pqw4AhHazzhaIOjmd8EsTogDu1Ynh44rszTA8cenk33AC0JgCc8PXOFpy5Ptd8E4QCM4+mJK/vP/mtynf6bIB43ycJGwVWfK9esL64lfO/eA+TihC8HCr6R+R4aYBSB8F2Tr0fO8J3Pd9hL4nvfBDj7vi7g7Pu6mMVZ/CXxI1wsXDD+D6bXWXvk7Pn6EP1NEDYT3itwhncc3kMM0OuQPXOHdyzu8J7DXdwAGS7crfCGO9zPYOqvwmkNdDR/z9w9XczMfh3uUvy7DZAhwh/+8PfKv+v1AK2L0+YfQYN3/hE0jOYfQUMrLzMvhuBlYGhAg4YONIzRUG2AKw4JHWhAR0wNxQbIBqPDq45IWtAhq+P0myAziK42dLRwfVnWEUnLGQeVV4OJuqFWNhUtsa8ztMhpGf53gS2LR4++nkha0ONPz7RXg7EiGD1r6omoCT39eoa/GoyWSDT50DRLD5p8aJp9lsT/MLolcWiyryuiJq4/P7qGvhxW9OGhC03o8q1ruAHO3JyIG4QutKFrHNy+IGr0jVlF20xdaENbjmEGOHMzZm9IZG0cJPStpM3VC6JG3QT0oQ99OvpEvwvsfRhojK9vBY2z9XnWKGaA0QeORjR60onGMnQb4AqDRica0WlTZy9f068IbWHA6IyncyWt6LyPZgNksGj1qnMlrVy/92HuFaEtDXSlg4LWuHrReowqA1xpkOhFK3rj6y3+OUDrQlbbOPSiGb39es28JL63waHZt140r6H5jJf6S+J7G1hEzSsejFX3ekXN93QfGiCDQjea0R1dt9pL4nsZELrj6l5ZO7r/j8u9/1x5MGiPrxvtaJ/+N0EsDmRl7dr6V9a+un4L2v8H5X9Ck4XRUZAAAAAASUVORK5CYII=';
+
+function heartRain(n) {
+  const b = Array.from({ length: n }, () => ({ x: rand(0, W), y: rand(-H, H), v: rand(14, 34), p: rand(0, 6) }));
+  return {
+    update(dt) { b.forEach(o => { o.y += o.v * dt; o.p += dt * 3; if (o.y > H) { o.y = -6; o.x = rand(0, W); } }); },
+    draw() { b.forEach(o => text('\u2665', o.x + Math.sin(o.p) * 3, o.y, UI.pink)); }
+  };
+}
+function titleScene() {
+  const rain = heartRain(14); let t = 0;
+  return {
+    update(dt) {
+      t += dt; rain.update(dt);
+      if (hit.a || mouse) { sfx('ok'); startNight(); go(menuScene()); }
+    },
+    draw() {
+      if (ARCADE.complete && ARCADE.naturalWidth) g.drawImage(ARCADE, 0, 0); else g.drawImage(CHECKER, 0, 0);
+      rain.draw();
+      portrait(188, 12 + (Math.floor(t * 2) % 2));
+      text('ODD', 12, 12, UI.yellow, { s: 5, sh: UI.ink });
+      text('JOBS', 12, 44, UI.yellow, { s: 5, sh: UI.ink });
+      nameplate('SIDE HUSTLES', 14, 80);
+      uiWindow(10, 104, 172, 66);
+      nameplate('MR. HONEYCRISP', 18, 99);
+      text('A RING WON\'T BUY ITSELF.', 18, 114, UI.white, { sh: UI.ink });
+      text('MOST OF THESE ARE CRIMES.', 18, 123, UI.white, { sh: UI.ink });
+      text(RUNS_PER_NIGHT + ' HUSTLES A NIGHT. CHOOSE WELL.', 18, 132, UI.pink, { sh: UI.ink });
+      text('YOU HAVE ' + money(getMoney()), 18, 141, UI.yellow, { sh: UI.ink });
+      if (Math.floor(t * 2) % 2 === 0) text('PRESS SPACE _', 174, 157, UI.yellow, { r: 1 });
+    }
+  };
+}
+
+function bars(x, y, n, col) { for (let i = 0; i < 6; i++) R(x + i * 6, y, 5, 4, i < n ? col : UI.ink); }
+function hustleIcon(id, x, y, t) {
+  if (id === 'dogs') { R(x, y + 7, 21, 7, OUT); R(x + 1, y + 8, 19, 5, '#e8b860'); R(x + 2, y + 5, 17, 5, OUT); R(x + 3, y + 6, 15, 3, '#b5482c'); for (let j = 0; j < 13; j++) R(x + 4 + j, y + 6 + j % 2, 1, 1, '#f6c81e'); }
+  if (id === 'deal') { R(x + 3, y + 2, 14, 12, '#2f7a4a'); R(x + 3, y + 2, 14, 2, '#17402a'); R(x + 6, y + 6, 8, 4, '#17402a'); }
+  if (id === 'pimp') { R(x + 1, y + 10, 18, 2, '#4c1a85'); R(x + 5, y + 3, 10, 7, '#6d2bb0'); R(x + 5, y + 7, 10, 2, '#ffe680'); R(x + 14, y, 2, 5, '#ff8fc0'); }
+  if (id === 'heist') { R(x + 3, y + 1, 14, 14, OUT); R(x + 4, y + 2, 12, 12, '#6a7690'); R(x + 7, y + 5, 6, 6, OUT); R(x + 8, y + 6, 4, 4, '#ffe680'); }
+  if (id === 'gamble') { R(x + 2, y, 16, 16, OUT); R(x + 3, y + 1, 14, 14, '#fdfbff'); R(x + 5, y + 3, 2, 2, '#d8304a'); R(x + 13, y + 3, 2, 2, '#d8304a'); R(x + 9, y + 7, 2, 2, '#d8304a'); R(x + 5, y + 11, 2, 2, '#d8304a'); R(x + 13, y + 11, 2, 2, '#d8304a'); }
+  if (id === 'fraud') { R(x, y + 3, 20, 10, OUT); R(x + 1, y + 4, 18, 8, '#f4efd8'); R(x + 1, y + 4, 18, 2, '#2f7ae0'); R(x + 3, y + 9, 9, 1, '#142060'); R(x + 14, y + 8, 3, 2, '#116633'); }
+}
+function menuScene(sel0 = 0) {
+  let sel = sel0, t = 0, confirmReset = 0, denied = 0;
+  const ROW = i => 22 + i * 16;
+  return {
+    update(dt) {
+      t += dt; confirmReset = Math.max(0, confirmReset - dt); denied = Math.max(0, denied - dt);
+      if (hit.up) { sel = (sel + 5) % 6; sfx('move'); }
+      if (hit.down) { sel = (sel + 1) % 6; sfx('move'); }
+      if (hit.r) {
+        if (confirmReset > 0) { save = { rep: {}, best: {}, busts: 0 }; persist(); confirmReset = 0; sfx('bad'); }
+        else confirmReset = 3;
+      }
+      let start = hit.a;
+      if (mouse) {
+        for (let i = 0; i < 6; i++) if (mouse.x >= 172 && mouse.y >= ROW(i) && mouse.y < ROW(i) + 15) { if (sel === i) start = true; else { sel = i; sfx('move'); } }
+        if (mouse.y > 126) start = true;
+      }
+      if (start) {
+        if (canAfford(HUSTLES[sel])) { sfx('ok'); go(briefScene(HUSTLES[sel])); }
+        else { sfx('bad'); denied = 1.2; }
+      }
+    },
+    draw() {
+      if (ARCADE.complete && ARCADE.naturalWidth) g.drawImage(ARCADE, 0, 0); else g.drawImage(CHECKER, 0, 0);
+      portrait(24, 8, 'grump');
+      uiWindow(170, 7, 142, 114);
+      text('HUSTLE ' + (night.run + 1) + ' OF ' + RUNS_PER_NIGHT, 241, 11, UI.yellow, { c: 1, sh: UI.ink });
+      HUSTLES.forEach((h, i) => {
+        const y = ROW(i), on = i === sel, open = canAfford(h);
+        vnChoice(174, y, 134, 15, on);
+        if (on) text('\u2665', 177, y + 4, UI.deep);
+        text(h.name, 188, y + 4, open ? UI.ink : '#8a84a8');
+        if (!open) text('NEED ' + money(h.buyIn), 304, y + 4, UI.deep, { r: 1 });
+        else { bars(266, y + 3, h.risk, UI.deep); bars(266, y + 8, h.pay, '#3b8a68'); }
+      });
+      const h = HUSTLES[sel], lv = save.rep[h.id] || 1;
+      uiWindow(10, 127, 300, 46);
+      nameplate('MR. HONEYCRISP', 18, 122);
+      text(money(getMoney()), 304, 131, UI.yellow, { r: 1, sh: UI.ink });
+      let yy = 134;
+      wrap(h.blurb, 284).slice(0, 2).forEach(l => { text(l, 18, yy, UI.white, { sh: UI.ink }); yy += 9; });
+      text(denied > 0 ? 'EARN SOME MONEY FIRST.' : 'BUSTED: ' + h.bust, 18, yy, UI.pink, { sh: UI.ink });
+      text(confirmReset > 0 ? 'R AGAIN CLEARS REP' : (h.id === 'gamble' ? '' : 'REP ' + lv + '   ') + 'TOP BAR RISK, LOW BAR PAY. PRESS M TO ' + (muted ? 'UNMUTE' : 'MUTE'), 18, 164, '#c8c4f0');
+      if (Math.floor(t * 2) % 2 === 0) text('SPACE _', 304, 164, UI.yellow, { r: 1 });
+    }
+  };
+}
+
+function briefScene(h) {
+  let t = 0;
+  const lv = save.rep[h.id] || 1;
+  return {
+    update(dt) {
+      t += dt;
+      if (t > .15 && (hit.a || mouse)) { sfx('go'); go(playScene(h)); }
+      if (hit.q) go(menuScene(HUSTLES.indexOf(h)));
+    },
+    draw() {
+      g.drawImage(SCENE[h.id], 0, 0);
+      fruttiBig(56, 166, 3, { outfit: h.id, step: 0 });
+      uiWindow(116, 14, 196, 154);
+      nameplate('MR. HONEYCRISP', 124, 9);
+      text(h.name, 124, 25, UI.yellow, { s: 2, sh: UI.ink });
+      text('RISK', 124, 44, UI.white); bars(144, 45, h.risk, UI.pink);
+      text('PAY', 188, 44, UI.white); bars(204, 45, h.pay, '#6fdc8c');
+      if (h.id !== 'gamble') text('REP ' + lv, 248, 44, UI.yellow);
+      let y = 57;
+      h.how.forEach(l => { wrap(l, 180).forEach((ln, i) => { text((i ? '  ' : '\u2665 ') + ln, 124, y, UI.white, { sh: UI.ink }); y += 9; }); y += 1; });
+      y += 2;
+      wrap('IF BUSTED: ' + h.bust, 180).forEach(l => { text(l, 124, y, UI.pink, { sh: UI.ink }); y += 9; });
+      if (Math.floor(t * 2.5) % 2 === 0) text('SPACE TO START _', 124, 157, UI.yellow);
+      text('Q BACK', 304, 157, '#c8c4f0', { r: 1 });
+    }
+  };
+}
+
+function playScene(h) {
+  const lvl = save.rep[h.id] || 1;
+  const run = {
+    h, lvl, take: 0, stake: 0, heat: 0, pay: (1 + .35 * (lvl - 1)) * h.rate, spd: 1 + .1 * (lvl - 1), time: h.time, done: null, msg: '', label: null,
+    bust(msg) { if (this.done) return; this.done = 'bust'; this.msg = msg; endT = 1.5; sfx('bust'); bump(7); flashOn('#ff2030', .7); },
+    finish(msg) { if (this.done) return; this.done = 'clean'; this.msg = msg; endT = 1.2; sfx('win'); flashOn('#7fe07a', .3); }
+  };
+  const game = GAMES[h.id](run);
+  let cd = h.ownStake ? 0 : 1.5, endT = 0, last = 3, isP = false;
+  return {
+    isPaused: () => isP,
+    onBlur() { if (!run.done && cd <= 0) isP = true; },
+    update(dt) {
+      if (isP) {
+        if (hit.p || hit.a) isP = false;
+        if (hit.q) go(menuScene(HUSTLES.indexOf(h)));
+        return;
+      }
+      if (hit.p && !run.done) { isP = true; return; }
+      fxUpdate(dt);
+      if (cd > 0) {
+        cd -= dt;
+        const n = Math.ceil(cd / .5);
+        if (n !== last && n > 0) { last = n; sfx('tick'); }
+        if (cd <= 0) sfx('go');
+        return;
+      }
+      if (run.done) { endT -= dt; if (endT <= 0) go(resultScene(run)); return; }
+      game.update(dt);
+      if (run.time != null && !run.done) {
+        const before = Math.ceil(run.time);
+        run.time -= dt;
+        if (Math.ceil(run.time) !== before && run.time <= 5 && run.time > 0) sfx('tick');
+        if (run.time <= 0) { run.time = 0; run.finish("TIME'S UP!"); }
+      }
+    },
+    draw() {
+      game.draw();
+      fxDraw();
+      // HUD
+      text(h.name, 4, 3, UI.yellow, { sh: UI.ink });
+      if (h.id === 'gamble') text(money(getMoney()) + ' left in your pocket', W - 4, 3, UI.pink, { r: 1, sh: UI.ink });
+      else {
+        text('Take: ' + money(run.take), 96, 3, UI.white, { sh: UI.ink });
+        const lab = { dogs: 'STRIKES', deal: 'HEAT', pimp: 'HEAT', heist: 'ALARM', fraud: 'TRACE' }[h.id];
+        const hx = 196, hw = 50;
+        text(lab, hx - 3, 3, UI.white, { r: 1, sh: UI.ink });
+        R(hx - 2, 2, hw + 4, 8, UI.ink); R(hx - 1, 3, hw + 2, 6, UI.white); R(hx, 4, hw, 4, UI.ink);
+        R(hx, 4, hw * run.heat, 4, run.heat > .66 ? (Math.floor(performance.now() / 120) % 2 ? UI.deep : UI.yellow) : run.heat > .33 ? UI.yellow : '#6fdc8c');
+        if (run.time != null) text(Math.ceil(run.time), W - 5, 3, run.time <= 5 ? UI.pink : UI.yellow, { r: 1, sh: UI.ink });
+      }
+      if (cd > 0) {
+        const n = Math.ceil(cd / .5);
+        R(0, 70, W, 34, '#1c1440cc');
+        text(n > 0 ? n : 'GO', W / 2, 78, UI.yellow, { s: 4, c: 1, sh: UI.ink });
+      }
+      if (run.done) {
+        const b = run.done === 'bust';
+        uiWindow(20, 72, W - 40, 34);
+        text(b ? 'BUSTED!' : run.msg, W / 2, 78, b ? UI.pink : UI.yellow, { s: 3, c: 1, sh: UI.ink });
+        if (b) text(run.msg, W / 2, 98, UI.white, { c: 1 });
+      }
+      if (isP) {
+        uiWindow(50, 52, 220, 66);
+        text('PAUSED', W / 2, 60, UI.yellow, { s: 3, c: 1, sh: UI.ink });
+        text('SPACE: BACK TO WORK', W / 2, 92, '#fff', { c: 1 });
+        text('Q: WALK AWAY AND LOSE THE TAKE', W / 2, 102, UI.pink, { c: 1 });
+      }
+    }
+  };
+}
+
+function resultScene(run) {
+  const h = run.h, bust = run.done === 'bust';
+  const before = getMoney();
+  let fine = 0, paid = 0;
+  if (bust) {
+    fine = Math.min(before + (h.keep ? run.take : 0), Math.max(Math.round(before * h.finePct), h.fineMin));
+    if (h.keep) paid = run.take;
+    setMoney(before + paid - fine);
+    save.rep[h.id] = 1; save.busts = (save.busts || 0) + 1;
+  } else {
+    paid = run.stake + Math.round(run.take);
+    addMoney(paid);
+    if (!h.ownStake) save.rep[h.id] = Math.min(5, (save.rep[h.id] || 1) + 1);
+    if (run.take > (save.best[h.id] || 0)) save.best[h.id] = Math.round(run.take);
+  }
+  persist();
+  const after = getMoney(), newRep = save.rep[h.id];
+  night.run++;
+  const rain = heartRain(bust ? 0 : Math.round(Math.min(40, 6 + Math.log10(paid + 1) * 6))); let t = 0, shown = before, drop = 0;
+  if (bust) sfx('bust'); else if (paid > 0) sfx('win');
+  return {
+    update(dt) {
+      t += dt; rain.update(dt); drop = Math.min(1, drop + dt * 2.2);
+      const k = clamp((t - .5) / .9, 0, 1); shown = before + (after - before) * k;
+      if (t > .6 && (hit.a || mouse)) {
+        sfx('ok');
+        go(night.run >= RUNS_PER_NIGHT ? nightScene() : menuScene(HUSTLES.indexOf(h)));
+      }
+    },
+    draw() {
+      if (ARCADE.complete && ARCADE.naturalWidth) g.drawImage(ARCADE, 0, 0); else g.drawImage(CHECKER, 0, 0);
+      rain.draw();
+      if (bust) for (let i = 0; i < 6; i++) { R(226, 30 + i * 24, 94, 1, '#5a5488'); text((6 - i) + 'FT', 300, 24 + i * 24, '#5a5488'); }
+      portrait(204, 14, bust ? 'cry' : 'smug');
+      if (bust) {
+        const by = -150 + drop * 150;
+        for (let i = 0; i < 9; i++) { R(226 + i * 12, by, 3, 180, '#8a90b0'); R(226 + i * 12, by, 1, 180, UI.white); }
+        R(226, by + 70, 94, 4, '#8a90b0');
+      }
+      uiWindow(10, 14, 200, 154);
+      nameplate('MR. HONEYCRISP', 18, 9);
+      text(bust ? 'BUSTED' : 'CLEAN', 18, 24, bust ? UI.pink : UI.yellow, { s: 4, sh: UI.ink });
+      text(run.msg, 18, 56, UI.white, { sh: UI.ink });
+      let y = 68;
+      const line = (a, b, c) => { text(a, 18, y, UI.white); text(b, 202, y, c, { r: 1 }); y += 10; };
+      const minus = n => '-' + money(n), plus = n => '+' + money(n);
+      if (run.stake) line(bust ? 'BET LOST' : 'BET BACK', (bust ? minus : plus)(run.stake), bust ? UI.pink : '#7fe07a');
+      if (bust && !h.keep && run.take) line('SEIZED', minus(run.take), UI.pink);
+      if (!bust || h.keep) line('THE TAKE', plus(run.take), '#7fe07a');
+      if (bust && fine) line(h.finePct ? 'BAIL (' + Math.round(h.finePct * 100) + '% OF MONEY)' : 'FINE', minus(fine), UI.pink);
+      R(18, y, 184, 1, UI.white); y += 5;
+      text('MONEY', 18, y, UI.pink, { s: 2, sh: UI.ink }); text(money(shown), 202, y, UI.yellow, { s: 2, r: 1, sh: UI.ink }); y += 16;
+      if (h.id !== 'gamble') { text(bust ? 'REP RESET TO 1' : 'REP ' + newRep + ': PAYS MORE, MOVES FASTER', 18, y, bust ? UI.pink : UI.yellow); y += 8; }
+      if (after === 0) text('FLAT BROKE. HOT DOGS ARE ALWAYS HIRING.', 18, y, UI.pink);
+      if (t > .6 && Math.floor(t * 2.5) % 2 === 0) text('SPACE: ' + (night.run >= RUNS_PER_NIGHT ? 'END THE NIGHT' : 'NEXT HUSTLE'), 18, 158, UI.white);
+    }
+  };
+}
+
+/* The end of a night: reports the score, which the site keeps if it's a new best. */
+function nightScene() {
+  const earned = Math.max(0, getMoney() - night.start), score = Math.round(clamp(earned / SCORE_TARGET, 0, 1) * 100);
+  if (embedded) toSite({ type: 'finish', score });
+  const rain = heartRain(score >= 70 ? 30 : 6); let t = 0;
+  sfx(score >= 40 ? 'win' : 'bad');
+  return {
+    update(dt) {
+      t += dt; rain.update(dt);
+      if (t > .6 && (hit.a || mouse)) {
+        sfx('ok');
+        if (embedded) toSite({ type: 'leave' }); else go(titleScene());
+      }
+    },
+    draw() {
+      if (ARCADE.complete && ARCADE.naturalWidth) g.drawImage(ARCADE, 0, 0); else g.drawImage(CHECKER, 0, 0);
+      rain.draw();
+      portrait(204, 14, score >= 40 ? 'smug' : 'grump');
+      uiWindow(10, 14, 200, 154);
+      nameplate('MR. HONEYCRISP', 18, 9);
+      text('NIGHT OVER', 18, 26, UI.yellow, { s: 2, sh: UI.ink });
+      text('EARNED TONIGHT', 18, 50, UI.white); text(money(earned), 202, 50, '#6fdc8c', { r: 1 });
+      text('TOTAL MONEY', 18, 60, UI.white); text(money(getMoney()), 202, 60, UI.yellow, { r: 1 });
+      R(18, 71, 184, 1, UI.white);
+      text('SCORE', 18, 78, UI.pink, { s: 2, sh: UI.ink }); text(score, 202, 78, UI.yellow, { s: 2, r: 1, sh: UI.ink });
+      for (let i = 0; i < 5; i++) text('\u2665', 18 + i * 8, 96, i < Math.round(score / 20) ? UI.pink : UI.ink);
+      wrap(score >= 70 ? 'THAT BUYS A REAL RING. SHE IS GOING TO CRY.' : score >= 40 ? 'SILVER RING MONEY. NOT BAD FOR A NIGHT.' : 'CANDY RINGS ARE ALSO A KIND OF RING.', 184).forEach((l, i) => text(l, 18, 108 + i * 8, UI.white));
+      text('THE PROPOSAL COSTS UP TO ' + money(BUDGET), 18, 132, UI.pink);
+      if (t > .6 && Math.floor(t * 2.5) % 2 === 0) text(embedded ? 'SPACE: BACK TO THE ARCADE' : 'SPACE: NEW NIGHT', 18, 158, UI.white);
+    }
+  };
+}
+
+/* Repaints a scene with Hold It In's cafe palette and ordered dithering. */
+const DUSK = ["#7f4d9f", "#5f3f97", "#2c2266", "#2d1433", "#5b3176", "#51296c", "#e8b9a0", "#46223f", "#623176", "#6e3a80", "#5c3f97", "#463289", "#a85f97", "#7b4c96", "#6a3f9c", "#54293f", "#3a2d7a", "#2b2a45", "#b4569f", "#3b1c3e", "#6a3640", "#8a5240", "#3f1f3f", "#f3dcc8", "#e8487f", "#e8c9b8", "#1c1440", "#7c4545", "#fdfbff", "#a85a48", "#b87850", "#3b8a68", "#ffd76e", "#f07f9f", "#ff8fc0", "#fff3c0", "#4fa877", "#d8d4f0", "#9a5a48", "#ffe680", "#42265f", "#4a2a68", "#f4e6f4", "#834587", "#753b7e", "#c97258", "#a2619a", "#ffe6c0", "#fdf0e2", "#8fd6a8", "#ffffff", "#7fd69a"].map(h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]);
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+function dusk(c) {
+  const x = c.getContext('2d'), im = x.getImageData(0, 0, c.width, c.height), d = im.data, seen = new Map();
+  for (let i = 0; i < d.length; i += 4) {
+    const px = (i / 4) % c.width, py = (i / 4 / c.width) | 0, n = (BAYER[(py % 4) * 4 + px % 4] / 16 - .5) * 34;
+    const r = d[i] + n, gr = d[i + 1] + n, b = d[i + 2] + n, key = (r & 255) << 16 | (gr & 255) << 8 | (b & 255);
+    let hit = seen.get(key);
+    if (!hit) {
+      let best = 1e9;
+      for (const p of DUSK) { const e = (r - p[0]) ** 2 * 2 + (gr - p[1]) ** 2 * 4 + (b - p[2]) ** 2 * 3; if (e < best) { best = e; hit = p; } }
+      seen.set(key, hit);
+    }
+    d[i] = hit[0]; d[i + 1] = hit[1]; d[i + 2] = hit[2];
+  }
+  x.putImageData(im, 0, 0);
+  return c;
+}
+[DOG_BG, DEAL_BG, PIMP_BG, VAULT_BG, CASINO_BG, FRAUD_BG].forEach(dusk);
+const SCENE = { dogs: DOG_BG, deal: DEAL_BG, pimp: PIMP_BG, heist: VAULT_BG, fraud: FRAUD_BG, gamble: CASINO_BG };
+
+/* ---------------------------------------------------------------- main loop */
+let lastT = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - lastT) / 1000); lastT = now;
+  if (hit.m) { muted = !muted; if (master) master.gain.value = muted ? 0 : .5; }
+  if (wipe > 0) wipe = Math.max(0, wipe - dt * 4);
+  scene.update(dt);
+  const sx = shake > 0 ? Math.round(rand(-shake, shake)) : 0, sy = shake > 0 ? Math.round(rand(-shake, shake)) : 0;
+  g.setTransform(SCALE, 0, 0, SCALE, sx * SCALE, sy * SCALE);
+  scene.draw();
+  g.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+  if (flash > 0) { g.globalAlpha = flash; R(0, 0, W, H, flashCol); g.globalAlpha = 1; }
+  if (wipe > 0 && !reduced) { const c = 12; for (let i = 0; i < c; i++) R(0, i * H / c, W * wipe, H / c + 1, '#000'); }
+  for (const k in hit) hit[k] = false;
+  mouse = null;
+  requestAnimationFrame(frame);
+}
+if (embedded) startNight();
+go(embedded ? menuScene() : titleScene());
+requestAnimationFrame(frame);
+cv.focus();
+</script>
