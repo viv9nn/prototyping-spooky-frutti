@@ -1,0 +1,1435 @@
+/* ==========================================================================
+   Stage 3: Late-Night TikTok - 100% Pixelized Arcade Aesthetic
+   ========================================================================== */
+
+.stage-3-container {
+  position: relative;
+  max-width: 1040px;
+  margin: 0 auto;
+  min-height: calc(100vh - 110px);
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Custom Pixel Hand Grab Cursor */
+.viewport-center,
+.pixel-notif-window,
+.pixel-phone-case {
+  cursor: grab;
+}
+
+.pixel-notif-window.pixel-notif-dragging {
+  cursor: grabbing !important;
+}
+
+/* ==========================================================================
+   HUD Header (Pixelized)
+   ========================================================================== */
+
+.stage3-hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  margin-bottom: 20px;
+}
+
+.hud-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hud-label {
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: var(--yellow);
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+/* Timer */
+.hud-timer {
+  min-width: 160px;
+}
+
+.timer-digits {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 26px;
+  color: var(--white);
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+.timer-bar-wrap {
+  width: 100%;
+  height: 12px;
+  background: var(--ink);
+  border: 2px solid var(--white);
+  box-shadow: inset 0 0 0 2px var(--ink);
+  overflow: hidden;
+}
+
+.timer-bar-fill {
+  height: 100%;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--yellow) 0px,
+    var(--yellow) 8px,
+    #e6c840 8px,
+    #e6c840 12px
+  );
+  transition: width 0.3s steps(20);
+}
+
+/* Suspicion Meter */
+.hud-suspicion {
+  flex: 1;
+  max-width: 320px;
+}
+
+.suspicion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.suspicion-number {
+  font-size: 18px;
+  font-weight: 700;
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+.text-safe {
+  color: #86efac;
+}
+
+.text-warning {
+  color: var(--yellow);
+}
+
+.text-danger {
+  color: var(--pink-deep);
+  animation: pixel-flash 0.6s steps(2) infinite;
+}
+
+@keyframes pixel-flash {
+  50% { opacity: 0.3; }
+}
+
+.suspicion-meter-track {
+  width: 100%;
+  height: 16px;
+  background: var(--ink);
+  border: 2px solid var(--white);
+  box-shadow: inset 0 0 0 2px var(--ink);
+  overflow: hidden;
+}
+
+.suspicion-meter-fill {
+  height: 100%;
+  transition: width 0.25s steps(20);
+}
+
+.meter-safe {
+  background: repeating-linear-gradient(
+    90deg,
+    #10b981 0px,
+    #10b981 8px,
+    #059669 8px,
+    #059669 12px
+  );
+}
+
+.meter-warning {
+  background: repeating-linear-gradient(
+    90deg,
+    #f59e0b 0px,
+    #f59e0b 8px,
+    #d97706 8px,
+    #d97706 12px
+  );
+}
+
+.meter-danger {
+  background: repeating-linear-gradient(
+    90deg,
+    #ef4444 0px,
+    #ef4444 8px,
+    #b91c1c 8px,
+    #b91c1c 12px
+  );
+  box-shadow: 0 0 8px #ef4444;
+}
+
+/* Lives */
+.hud-lives {
+  align-items: center;
+}
+
+.lives-hearts {
+  display: flex;
+  gap: 8px;
+  font-size: 26px;
+}
+
+.heart-alive {
+  color: var(--pink);
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+.heart-lost {
+  color: #3b3564;
+  text-shadow: none;
+}
+
+.hud-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.hud-btn {
+  background: var(--white);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  padding: 6px 12px;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: inset 0 -4px 0 #d8d4f0;
+}
+
+.hud-btn:hover {
+  background: #ffd6e8;
+  box-shadow: inset 0 -4px 0 var(--pink);
+}
+
+/* ==========================================================================
+   Main Viewport Frame (Pixelized VN Stage)
+   ========================================================================== */
+
+.stage3-viewport {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 20px;
+  align-items: center;
+  background: repeating-conic-gradient(
+    #2a2058 0% 25%,
+    #231a4c 0% 50%,
+    #2a2058 0% 75%,
+    #231a4c 0% 100%
+  ) 0 0 / 32px 32px;
+  border: 4px solid var(--ink);
+  box-shadow:
+    0 -4px 0 var(--white),
+    0 4px 0 var(--white),
+    -4px 0 0 var(--white),
+    4px 0 0 var(--white),
+    0 -8px 0 var(--ink),
+    0 8px 0 var(--ink),
+    -8px 0 0 var(--ink),
+    8px 0 0 var(--ink);
+  padding: 24px;
+  min-height: 600px;
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   Left Side: Bedroom Bed Scene with Miss Oishii & Apple Boyfriend
+   ========================================================================== */
+
+.viewport-left {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.bedside-scene {
+  position: relative;
+  width: 100%;
+  height: 540px;
+  background: repeating-linear-gradient(
+    90deg,
+    #2a1e52 0px,
+    #2a1e52 24px,
+    #221743 24px,
+    #221743 48px
+  );
+  border: 4px solid var(--ink);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+/* Window matching the restaurant scene */
+.bedroom-wall {
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  right: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.bedroom-night-window {
+  width: 220px;
+  height: 130px;
+  background: #0d0924;
+  position: relative;
+  overflow: hidden;
+  border: 4px solid #6c5443;
+}
+
+.bedroom-night-window::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  background: #6c5443;
+}
+
+.city-skyline {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 0 10px;
+}
+
+.building {
+  background: #181136;
+  position: relative;
+  border-top: 2px solid #281d58;
+}
+
+.building::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  background: radial-gradient(circle, var(--yellow) 25%, transparent 30%) 0 0 / 6px 8px;
+}
+
+.b1 { width: 45px; height: 50px; }
+.b2 { width: 65px; height: 60px; }
+.b3 { width: 55px; height: 42px; }
+
+.crescent-moon {
+  position: absolute;
+  top: 12px;
+  right: 24px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  box-shadow: -6px 4px 0 0 var(--yellow);
+}
+
+.star {
+  position: absolute;
+  color: var(--yellow);
+  font-size: 10px;
+}
+
+.s1 { top: 14px; left: 24px; }
+.s2 { top: 32px; left: 74px; }
+
+/* Wall Lamp with pink lampshade matching screenshot */
+.wall-lamp {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.lamp-shade {
+  width: 32px;
+  height: 20px;
+  background: var(--pink-deep);
+  border: 2px solid var(--ink);
+  clip-path: polygon(25% 0%, 75% 0%, 100% 100%, 0% 100%);
+}
+
+.lamp-glow {
+  width: 14px;
+  height: 8px;
+  background: var(--yellow);
+  border: 2px solid var(--ink);
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 14px var(--yellow);
+}
+
+/* Bed Mattress & Pillows */
+.bed-mattress {
+  position: absolute;
+  bottom: 110px;
+  left: 0;
+  right: 0;
+  height: 180px;
+  background: #392c68;
+  border-top: 4px solid var(--ink);
+}
+
+.pillow {
+  position: absolute;
+  top: -24px;
+  width: 130px;
+  height: 70px;
+}
+
+.pillow-left { left: 24px; }
+.pillow-right { right: 24px; }
+
+/* Characters in Bed Container */
+.couple-container {
+  position: relative;
+  width: 100%;
+  height: 320px;
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  z-index: 5;
+}
+
+/* Sprites */
+.pixel-sprite {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  display: block;
+}
+
+/* Girlfriend (Miss Oishii) */
+.girlfriend-character {
+  position: absolute;
+  left: 20px;
+  bottom: 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: transform 0.2s steps(4);
+  transform-origin: 50% 90%;
+  z-index: 10;
+}
+
+.oishii-sprite-box {
+  position: relative;
+  width: 220px;
+  height: 208px;
+}
+
+.oishii-sprite-img {
+  width: 220px;
+  height: 208px;
+  object-fit: contain;
+}
+
+.pajamas-body-oishii {
+  width: 110px;
+  height: 52px;
+  background: #7ca8d9;
+  border: 4px solid var(--ink);
+  margin-top: -16px;
+  box-shadow: inset 0 4px 0 #9ec2eb;
+}
+
+/* Overlays on Miss Oishii */
+.laughing-eyes-overlay {
+  position: absolute;
+  top: 88px;
+  left: 64px;
+  display: flex;
+  gap: 36px;
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--ink);
+  text-shadow: 1px 1px 0 #ffffff;
+}
+
+.yawn-mouth-overlay {
+  position: absolute;
+  bottom: 34px;
+  left: 102px;
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--ink);
+}
+
+.laser-beam-indicator {
+  position: absolute;
+  top: 86px;
+  right: 18px;
+  font-size: 28px;
+  color: #ff0055;
+  animation: laser-blink 0.2s steps(2) infinite alternate;
+}
+
+@keyframes laser-blink {
+  from { transform: scale(1); }
+  to { transform: scale(1.3); }
+}
+
+.anger-vein-overlay {
+  position: absolute;
+  top: 36px;
+  right: 32px;
+  font-size: 32px;
+  animation: bounce-tell 0.4s infinite alternate;
+}
+
+/* Indicators */
+.tell-alert-bubble {
+  position: absolute;
+  top: -24px;
+  padding: 4px 10px;
+  font-size: 18px;
+  animation: bounce-tell 0.3s steps(2) infinite alternate;
+}
+
+@keyframes bounce-tell {
+  from { transform: translateY(0); }
+  to { transform: translateY(-8px); }
+}
+
+.fakeout-bubble {
+  position: absolute;
+  top: -20px;
+  padding: 2px 8px;
+  font-size: 15px;
+}
+
+/* Apple Boyfriend */
+.player-character {
+  position: absolute;
+  right: 32px;
+  bottom: 65px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 9;
+}
+
+.apple-sprite-box {
+  position: relative;
+  width: 220px;
+  height: 208px;
+}
+
+.apple-sprite-img {
+  width: 220px;
+  height: 208px;
+  object-fit: contain;
+}
+
+.player-sweat-drop {
+  position: absolute;
+  top: 40px;
+  right: 48px;
+  font-size: 22px;
+  animation: drip 1s steps(4) infinite;
+}
+
+@keyframes drip {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(8px); }
+  100% { transform: translateY(0); }
+}
+
+.pajamas-body-apple {
+  width: 105px;
+  height: 50px;
+  background: #e2d2ba;
+  border: 4px solid var(--ink);
+  margin-top: -16px;
+  box-shadow: inset 0 4px 0 #f0e2cd;
+}
+
+/* Duvet / Blanket */
+.bed-duvet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 140px;
+  background: #4a3c7c;
+  border-top: 4px solid var(--white);
+  box-shadow: inset 0 6px 0 var(--ink);
+  z-index: 15;
+}
+
+.duvet-pink-fold {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 24px;
+  background: var(--pink);
+  border-bottom: 4px solid var(--ink);
+}
+
+/* Spooky Frutti Dialogue Box */
+.stage3-speech-dialogue {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 35;
+  animation: vn-pop 0.2s steps(2);
+}
+
+.vn-dialogue-text {
+  font-size: 19px;
+  line-height: 1.4;
+}
+
+@keyframes vn-pop {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Gaze Status Pill */
+.gaze-status-indicator {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  font-size: 14px;
+  z-index: 25;
+}
+
+.badge-safe {
+  border-left: 6px solid #10b981;
+}
+
+.badge-warning {
+  border-left: 6px solid var(--yellow);
+}
+
+.badge-danger {
+  border-left: 6px solid var(--pink-deep);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--yellow);
+}
+
+/* ==========================================================================
+   Center: Pixel-Art Retro Phone Case & TikTok Feed
+   ========================================================================== */
+
+.viewport-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.pixel-phone-case {
+  position: relative;
+  width: 326px;
+  height: 574px;
+  padding: 12px;
+  transition: transform 0.2s steps(4);
+}
+
+.pixel-phone-case.phone-snatched {
+  animation: pixel-shake 0.3s steps(4) infinite;
+  filter: sepia(0.8) hue-rotate(300deg);
+}
+
+@keyframes pixel-shake {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-8px, 6px); }
+  50% { transform: translate(8px, -6px); }
+  75% { transform: translate(-6px, -4px); }
+  100% { transform: translate(0, 0); }
+}
+
+.pixel-phone-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000000;
+  border: 4px solid var(--ink);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Pixel Status Bar */
+.pixel-status-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 36px;
+  padding: 6px 12px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--white);
+  background: rgba(0, 0, 0, 0.7);
+  border-bottom: 2px solid var(--ink);
+  z-index: 60;
+  pointer-events: none;
+}
+
+.pixel-status-time {
+  color: var(--yellow);
+}
+
+.pixel-status-notch {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pixel-notch-dot {
+  width: 4px;
+  height: 4px;
+  background: #ffffff;
+}
+
+.pixel-notch-bar {
+  width: 24px;
+  height: 4px;
+  background: #555577;
+}
+
+.pixel-status-meters {
+  display: flex;
+  gap: 6px;
+  font-size: 12px;
+}
+
+/* Video Stage */
+.pixel-tiktok-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+}
+
+.feed-bg-purple {
+  background: repeating-linear-gradient(135deg, #2b1055 0px, #2b1055 16px, #421882 16px, #421882 32px);
+}
+
+.feed-bg-orange {
+  background: repeating-linear-gradient(135deg, #431407 0px, #431407 16px, #7c2d12 16px, #7c2d12 32px);
+}
+
+.feed-bg-indigo {
+  background: repeating-linear-gradient(135deg, #1e1b4b 0px, #1e1b4b 16px, #312e81 16px, #312e81 32px);
+}
+
+.feed-bg-green {
+  background: repeating-linear-gradient(135deg, #064e3b 0px, #064e3b 16px, #065f46 16px, #065f46 32px);
+}
+
+.feed-bg-crimson {
+  background: repeating-linear-gradient(135deg, #4c0519 0px, #4c0519 16px, #881337 16px, #881337 32px);
+}
+
+.pixel-video-anim {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.pixel-actor {
+  font-size: 72px;
+  display: block;
+}
+
+.anim-dance .pixel-actor {
+  animation: pixel-dance 0.5s steps(2) infinite alternate;
+}
+
+@keyframes pixel-dance {
+  from { transform: translateY(0) scaleX(1); }
+  to { transform: translateY(-16px) scaleX(-1); }
+}
+
+.pixel-eq-bars {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.pixel-eq-bars span {
+  width: 6px;
+  height: 20px;
+  background: var(--yellow);
+  animation: eq-step 0.4s steps(4) infinite alternate;
+}
+
+.pixel-eq-bars span:nth-child(2) { animation-delay: 0.1s; }
+.pixel-eq-bars span:nth-child(3) { animation-delay: 0.2s; }
+.pixel-eq-bars span:nth-child(4) { animation-delay: 0.3s; }
+
+@keyframes eq-step {
+  from { height: 6px; }
+  to { height: 28px; }
+}
+
+.anim-cat .pixel-actor {
+  animation: cat-step 1.2s steps(2) infinite alternate;
+}
+
+@keyframes cat-step {
+  from { transform: scale(1); }
+  to { transform: scale(1.1); }
+}
+
+.pixel-z {
+  position: absolute;
+  color: var(--white);
+  font-size: 20px;
+  font-weight: 900;
+  animation: float-z-pixel 1.5s steps(6) infinite;
+}
+
+.z2 { font-size: 16px; animation-delay: 0.5s; }
+
+@keyframes float-z-pixel {
+  0% { transform: translate(20px, 0); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translate(45px, -50px); opacity: 0; }
+}
+
+.pixel-sparkles,
+.pixel-hearts-float {
+  position: absolute;
+  color: var(--pink);
+  font-size: 20px;
+  margin-top: 50px;
+  animation: pixel-flash 0.5s steps(2) infinite;
+}
+
+/* Retro Pixel TikTok Sidebar */
+.pixel-tiktok-sidebar {
+  position: absolute;
+  right: 10px;
+  bottom: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  z-index: 20;
+}
+
+.pixel-side-btn {
+  background: var(--white);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: inset 0 -3px 0 #d8d4f0;
+}
+
+.pixel-side-btn:hover {
+  background: #ffd6e8;
+  box-shadow: inset 0 -3px 0 var(--pink);
+}
+
+.avatar-btn {
+  position: relative;
+  padding: 2px;
+}
+
+.pixel-avatar {
+  font-size: 24px;
+}
+
+.pixel-badge {
+  position: absolute;
+  bottom: -4px;
+  background: var(--pink-deep);
+  color: var(--white);
+  width: 14px;
+  height: 14px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ink);
+}
+
+.pixel-btn-icon {
+  font-size: 20px;
+}
+
+.pixel-btn-count {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.liked {
+  background: #ffd6e8;
+  color: var(--pink-deep);
+}
+
+.pixel-disc {
+  font-size: 24px;
+  animation: spin-step 2s steps(8) infinite;
+}
+
+@keyframes spin-step {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* TikTok Info */
+.pixel-tiktok-info {
+  position: absolute;
+  left: 12px;
+  right: 68px;
+  bottom: 50px;
+  color: var(--white);
+  z-index: 20;
+  text-shadow: 2px 2px 0 var(--ink);
+  pointer-events: none;
+}
+
+.pixel-author {
+  font-size: 15px;
+  color: var(--yellow);
+}
+
+.pixel-caption {
+  font-size: 13px;
+  line-height: 1.3;
+  margin: 2px 0;
+}
+
+.pixel-tags {
+  font-size: 12px;
+  color: var(--pink);
+}
+
+.pixel-music-row {
+  font-size: 11px;
+  color: #cbd5e1;
+  margin-top: 2px;
+}
+
+/* Bottom Nav Bar */
+.pixel-bottom-nav {
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  right: 0;
+  height: 34px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  color: #cbd5e1;
+  font-size: 12px;
+  background: var(--ink);
+  border-top: 2px solid var(--white);
+  z-index: 20;
+}
+
+.active-tab {
+  color: var(--yellow);
+}
+
+.nav-add {
+  background: var(--pink);
+  color: var(--ink);
+  padding: 0 6px;
+  border: 1px solid var(--white);
+}
+
+.pixel-home-bar {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 4px;
+  background: var(--white);
+  z-index: 25;
+}
+
+/* ==========================================================================
+   Pixel Notification Banners (Stepped Pixel Windows)
+   ========================================================================== */
+
+.pixel-notif-container {
+  position: absolute;
+  top: 40px;
+  left: 8px;
+  right: 8px;
+  z-index: 50;
+  pointer-events: auto;
+}
+
+.pixel-notif-window {
+  position: absolute;
+  left: 0;
+  right: 0;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+
+.pixel-notif-window.pixel-notif-dragging {
+  cursor: grabbing !important;
+  outline: 2px dashed var(--yellow);
+}
+
+.pixel-notif-risky {
+  border-left: 6px solid var(--pink-deep);
+}
+
+.pixel-notif-harmless {
+  border-left: 6px solid #4a4fc0;
+}
+
+.pixel-notif-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.notif-badge-tag {
+  color: var(--yellow);
+  font-weight: 700;
+}
+
+.notif-app-title {
+  color: var(--white);
+}
+
+.notif-timestamp {
+  margin-left: auto;
+  color: #cbd5e1;
+  font-size: 11px;
+}
+
+.pixel-notif-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.notif-sender-text {
+  font-size: 14px;
+  color: var(--yellow);
+  text-shadow: 1px 1px 0 var(--ink);
+}
+
+.notif-msg-text {
+  font-size: 13px;
+  color: var(--white);
+  line-height: 1.3;
+}
+
+.pixel-handle-indicator {
+  font-size: 11px;
+  color: var(--yellow);
+  text-align: center;
+  margin-top: 4px;
+  letter-spacing: 1px;
+}
+
+/* ==========================================================================
+   Modals & Overlays (Classic Stepped Pixel Windows)
+   ========================================================================== */
+
+.stage3-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 10, 38, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+/* Instruction Card */
+.instruction-card {
+  max-width: 580px;
+  width: 100%;
+  padding: 32px;
+  text-align: center;
+}
+
+.instruction-chapter {
+  color: var(--yellow);
+  font-size: 22px;
+  margin-bottom: 12px;
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+.instruction-hero-text {
+  margin-bottom: 20px;
+}
+
+.instruction-main-rule {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--white);
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+.rule-highlight {
+  color: var(--pink);
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+.instruction-demo {
+  background: var(--ink);
+  border: 3px dashed var(--yellow);
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.demo-banner {
+  background: var(--window);
+  border: 2px solid var(--white);
+  padding: 8px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  color: var(--white);
+  animation: demo-flick 2s steps(4) infinite;
+}
+
+@keyframes demo-flick {
+  0%, 60% { transform: translateY(0); opacity: 1; }
+  75% { transform: translateY(-28px); opacity: 0; }
+  76% { transform: translateY(0); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.demo-subtext {
+  font-size: 14px;
+  color: var(--yellow);
+  margin-top: 8px;
+}
+
+.instruction-rules-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.rule-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.rule-badge {
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid var(--ink);
+}
+
+.instruction-countdown-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.countdown-label {
+  font-size: 14px;
+  color: var(--yellow);
+}
+
+.countdown-number {
+  font-size: 56px;
+  font-weight: 900;
+  color: var(--pink);
+  text-shadow: 3px 3px 0 var(--ink);
+  line-height: 1;
+}
+
+.skip-countdown-btn {
+  margin-top: 8px;
+  cursor: pointer;
+  padding: 8px 24px;
+  font-size: 16px;
+}
+
+/* Gag Failure Overlay */
+.stage3-gag-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(232, 72, 127, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.gag-impact-text {
+  text-align: center;
+  color: var(--white);
+  text-shadow: 3px 3px 0 var(--ink);
+}
+
+.gag-impact-text h1 {
+  font-size: 52px;
+  margin-bottom: 8px;
+  letter-spacing: 2px;
+}
+
+.gag-impact-text p {
+  font-size: 22px;
+  margin-bottom: 16px;
+}
+
+.gag-tries-remaining {
+  display: inline-block;
+  background: var(--ink);
+  color: var(--yellow);
+  border: 4px solid var(--white);
+  padding: 10px 24px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+/* Recap Modal */
+.recap-card {
+  max-width: 540px;
+  width: 100%;
+  padding: 32px;
+  text-align: center;
+}
+
+.recap-intro {
+  margin: 12px 0 20px;
+  font-size: 16px;
+}
+
+.recap-tips-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.recap-tip {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  background: rgba(28, 20, 64, 0.8);
+  padding: 10px 14px;
+  border: 2px solid var(--white);
+}
+
+.tip-num {
+  background: var(--yellow);
+  color: var(--ink);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+.recap-actions {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+}
+
+/* Results / Clear Card */
+.results-card {
+  max-width: 560px;
+  width: 100%;
+  padding: 36px 28px;
+  text-align: center;
+  position: relative;
+}
+
+.results-stamp-wrap {
+  margin-bottom: 12px;
+}
+
+.results-grade-stamp {
+  display: inline-block;
+  font-size: 76px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 6px 24px;
+  border: 6px solid currentColor;
+  transform: rotate(-8deg);
+  text-shadow: 3px 3px 0 var(--ink);
+  animation: stamp-drop 0.3s steps(3);
+}
+
+@keyframes stamp-drop {
+  0% { transform: scale(2) rotate(-20deg); opacity: 0; }
+  100% { transform: scale(1) rotate(-8deg); opacity: 1; }
+}
+
+.stamp-S { color: var(--yellow); }
+.stamp-A { color: #86efac; }
+.stamp-B { color: #93c5fd; }
+.stamp-C { color: var(--pink); }
+
+.results-girlfriend-quote {
+  font-size: 17px;
+  color: var(--pink);
+  margin: 12px 0 24px;
+}
+
+.results-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-box {
+  background: rgba(28, 20, 64, 0.85);
+  border: 2px solid var(--white);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--yellow);
+}
+
+.stat-value {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.heart-bonus {
+  color: var(--pink);
+}
+
+.results-grading-legend {
+  display: flex;
+  justify-content: space-around;
+  font-size: 13px;
+  color: #cbd5e1;
+  margin-bottom: 24px;
+  padding: 8px;
+  background: var(--ink);
+  border: 2px solid var(--white);
+}
+
+.active-rank {
+  color: var(--yellow);
+  font-weight: 700;
+}
+
+.results-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+/* ==========================================================================
+   Dev Cheats Toolbar
+   ========================================================================== */
+
+.dev-cheats-panel {
+  margin-top: 16px;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.dev-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--yellow);
+  white-space: nowrap;
+}
+
+.dev-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dev-pill {
+  background: var(--white);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  padding: 4px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: inset 0 -3px 0 #d8d4f0;
+}
+
+.dev-pill:hover {
+  background: #ffd6e8;
+  box-shadow: inset 0 -3px 0 var(--pink);
+}
+
+/* ==========================================================================
+   Responsive Adaptations
+   ========================================================================== */
+
+@media (max-width: 860px) {
+  .stage3-viewport {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .viewport-left {
+    height: 400px;
+  }
+
+  .bedside-scene {
+    height: 400px;
+  }
+}
