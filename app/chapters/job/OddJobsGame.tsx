@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { finishChapter } from "@/lib/progress";
@@ -26,17 +25,12 @@ export default function OddJobsGame() {
   }, [router]);
 
   return (
-    <div className="game-page">
-      <iframe
-        ref={frame}
-        src="/games/side-hustle/index.html?embed"
-        title="Odd Jobs mini-game"
-        className="game-frame"
-        onLoad={() => frame.current?.focus()}
-      />
-      <Link href="/" className="vn-choice">
-        Back to the arcade
-      </Link>
-    </div>
+    <iframe
+      ref={frame}
+      src="/games/side-hustle/index.html?embed"
+      title="Odd Jobs mini-game"
+      className="game-frame"
+      onLoad={() => frame.current?.focus()}
+    />
   );
 }
