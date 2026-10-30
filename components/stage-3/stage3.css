@@ -1419,17 +1419,44 @@
    Responsive Adaptations
    ========================================================================== */
 
-@media (max-width: 860px) {
+/* The scene is a fixed size, so it's zoomed to keep the bed and phone on screen together. */
+
+@media (max-height: 860px) {
   .stage3-viewport {
-    grid-template-columns: 1fr;
-    gap: 20px;
+    zoom: 0.8;
+  }
+}
+
+@media (max-height: 720px) {
+  .stage3-viewport {
+    zoom: 0.65;
+  }
+}
+
+@media (max-width: 860px) {
+  .stage3-hud {
+    flex-wrap: wrap;
   }
 
-  .viewport-left {
-    height: 400px;
+  .stage3-viewport {
+    zoom: 0.65;
+  }
+}
+
+@media (max-width: 600px) {
+  .stage3-viewport {
+    zoom: 0.5;
+    padding: 12px;
+    gap: 12px;
   }
 
-  .bedside-scene {
-    height: 400px;
+  .hud-timer {
+    min-width: 0;
+  }
+
+  .stage3-modal-backdrop {
+    position: fixed;
+    align-items: flex-start;
+    overflow-y: auto;
   }
 }

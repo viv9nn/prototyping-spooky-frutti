@@ -139,4 +139,5 @@ export function resetProgress() {
   choicesStore.set({});
   outcomeStore.set(null);
   resetWallet();
+  localStorage.removeItem("spooky-frutti-v2"); // Odd Jobs' job levels and night
 }
