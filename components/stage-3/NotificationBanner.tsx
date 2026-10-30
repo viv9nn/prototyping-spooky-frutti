@@ -30,7 +30,7 @@ export default function NotificationBanner({
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (isDismissing) return;
-      if (e.button !== 0) return;
+      if (e.button !== 0) return; // primary button only
 
       e.preventDefault();
       try {
@@ -52,6 +52,7 @@ export default function NotificationBanner({
       if (!isDragging || isDismissing) return;
 
       const rawDeltaY = e.clientY - startYRef.current;
+      // Allow rapid upward dragging; apply high resistance if dragging downward
       const clampedDeltaY = rawDeltaY < 0 ? rawDeltaY : rawDeltaY * 0.08;
 
       setOffsetY(clampedDeltaY);
@@ -83,9 +84,9 @@ export default function NotificationBanner({
       const history = pointerHistoryRef.current;
       const oldest = history[0] || { y: e.clientY, time: now };
       const dt = Math.max(8, now - oldest.time);
-      const dy = oldest.y - e.clientY;
+      const dy = oldest.y - e.clientY; // upward distance travelled in recent ms
 
-      const upwardVelocity = dy / dt;
+      const upwardVelocity = dy / dt; // px / ms
       const upwardDistance = startYRef.current - e.clientY;
 
       const isFlickSuccess =
@@ -95,12 +96,13 @@ export default function NotificationBanner({
       if (isFlickSuccess) {
         setIsDismissing(true);
         playSwooshSound();
-        setOffsetY(-350);
+        setOffsetY(-360);
 
         setTimeout(() => {
           onDismiss(notification.instanceId);
         }, 180);
       } else {
+        // Snap back to normal resting place
         setOffsetY(0);
         if (upwardDistance > 8) {
           playSnapBackSound();
@@ -110,8 +112,9 @@ export default function NotificationBanner({
     [isDragging, isDismissing, notification.instanceId, onDismiss]
   );
 
-  const stackTop = 14 + index * 76;
-  const scale = Math.max(0.9, 1 - index * 0.03);
+  // Stack styling: stacked cards sit just below each other with stepped depth
+  const stackTop = 10 + index * 70;
+  const scale = Math.max(0.9, 1 - index * 0.04);
   const opacity = Math.max(0.85, 1 - index * 0.08);
 
   const transformStyle = `translateY(${offsetY}px) scale(${scale})`;
@@ -122,21 +125,23 @@ export default function NotificationBanner({
     ? "transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.18s ease-out"
     : "transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.25), box-shadow 0.2s ease";
 
+  const appTitle = notification.appLabel || "Messages";
+
   return (
     <div
       ref={bannerRef}
       role="button"
       tabIndex={0}
       aria-label={`Notification from ${notification.sender}: ${notification.message}. Flick up to dismiss.`}
-      className={`pixel-notif-window window ${
-        notification.type === "risky" ? "pixel-notif-risky" : "pixel-notif-harmless"
-      } ${isDragging ? "pixel-notif-dragging" : ""}`}
+      className={`notif-banner-card window ${
+        notification.type === "risky" ? "notif-risky" : "notif-harmless"
+      } ${isDragging ? "notif-dragging" : ""}`}
       style={{
         top: `${stackTop}px`,
         transform: transformStyle,
         transition: transitionStyle,
         opacity: isDismissing ? 0 : opacity,
-        zIndex: 50 - index,
+        zIndex: 60 - index,
         touchAction: "none",
         userSelect: "none",
       }}
@@ -145,19 +150,28 @@ export default function NotificationBanner({
       onPointerUp={handlePointerUpOrCancel}
       onPointerCancel={handlePointerUpOrCancel}
     >
-      <div className="pixel-notif-header">
-        <span className="notif-badge-tag">
-          {notification.type === "risky" ? "⚠️ RISKY" : "ℹ️ ALERT"}
-        </span>
-        <span className="notif-app-title">[{notification.appLabel || "MESSAGES"}]</span>
-        <span className="notif-timestamp">NOW</span>
+      {/* Top Header Row (From screenshot: [i] ALERT [Calendar] NOW) */}
+      <div className="notif-header-row">
+        <div className="notif-header-left">
+          <span className="notif-icon-badge">
+            {notification.type === "risky" ? "⚠️ ALERT" : "ℹ️ ALERT"}
+          </span>
+          <span className="notif-app-name">[{appTitle}]</span>
+        </div>
+        <span className="notif-now-time">NOW</span>
       </div>
-      <div className="pixel-notif-content">
-        <strong className="notif-sender-text">{notification.sender}:</strong>
-        <span className="notif-msg-text">{notification.message}</span>
+
+      {/* Main Sender & Message Content */}
+      <div className="notif-body-row">
+        <strong className="notif-sender-title">{notification.sender}:</strong>
+        <span className="notif-message-text">{notification.message}</span>
       </div>
-      <div className="pixel-handle-indicator">
-        <span>▲ ▲ FLICK UP ▲ ▲</span>
+
+      {/* Upward Flick Hint (From screenshot: ▲ ▲ FLICK UP ▲ ▲) */}
+      <div className="notif-flick-hint">
+        <span className="hint-arrow">▲ ▲</span>
+        <span className="hint-text">FLICK UP</span>
+        <span className="hint-arrow">▲ ▲</span>
       </div>
     </div>
   );

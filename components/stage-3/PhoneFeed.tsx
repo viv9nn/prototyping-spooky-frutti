@@ -3,6 +3,13 @@
 import React, { useState, useEffect } from "react";
 import NotificationBanner from "./NotificationBanner";
 import { ActiveNotification } from "./notificationsData";
+import {
+  RamenVideo,
+  CatVideo,
+  DanceVideo,
+  SoapVideo,
+  GamerVideo,
+} from "./TikTokVideos";
 
 interface PhoneFeedProps {
   notifications: ActiveNotification[];
@@ -15,70 +22,70 @@ interface PhoneFeedProps {
 interface VideoPost {
   id: number;
   author: string;
-  avatar: string;
+  avatarIcon: string;
   caption: string;
   tags: string;
   likes: string;
   comments: string;
-  bgClass: string;
-  animationType: "dance" | "cat" | "ramen" | "soap" | "gamer";
+  sound: string;
+  component: React.ComponentType;
 }
 
 const FEED_VIDEOS: VideoPost[] = [
   {
     id: 1,
-    author: "@pixel_dancer",
-    avatar: "💃",
-    caption: "Late night dance trend at 3 AM 😂 don't wake the neighbors!",
-    tags: "#fyp #dance #arcade #retro",
-    likes: "248.5K",
-    comments: "1.4K",
-    bgClass: "feed-bg-purple",
-    animationType: "dance",
-  },
-  {
-    id: 2,
     author: "@chef_midnight",
-    avatar: "🍜",
+    avatarIcon: "🍜",
     caption: "5-minute spicy cheese ramen hack you HAVE to try 🤤🔥",
     tags: "#ramen #foodtok #midnight",
     likes: "512.9K",
     comments: "3.8K",
-    bgClass: "feed-bg-orange",
-    animationType: "ramen",
+    sound: "♫ Original Sound - Spooky Frutti Beats",
+    component: RamenVideo,
+  },
+  {
+    id: 2,
+    author: "@chonky_mimi",
+    avatarIcon: "🐱",
+    caption: "Bro really thinks he's the DJ at 2 AM 😭🎧",
+    tags: "#cattok #cute #lofi #meow",
+    likes: "1.2M",
+    comments: "8.9K",
+    sound: "♫ Lofi Cat Purr - Sleep Waves",
+    component: CatVideo,
   },
   {
     id: 3,
-    author: "@chonky_mimi",
-    avatar: "🐱",
-    caption: "My cat refuses to sleep until I scroll 100 videos",
-    tags: "#cattok #cute #meow #pets",
-    likes: "1.2M",
-    comments: "8.9K",
-    bgClass: "feed-bg-indigo",
-    animationType: "cat",
+    author: "@pixel_dancer",
+    avatarIcon: "💃",
+    caption: "Late night dance practice at 3 AM 😂 don't wake the neighbors!",
+    tags: "#fyp #dance #arcade #kpop",
+    likes: "248.5K",
+    comments: "1.4K",
+    sound: "♫ Neon City Pop (Night Mix)",
+    component: DanceVideo,
   },
   {
     id: 4,
-    author: "@asmr_slice",
-    avatar: "🧼",
-    caption: "Oddly satisfying crunchy soap cuts to put you to sleep 😴✨",
+    author: "@asmr_slices",
+    avatarIcon: "🧼",
+    caption: "Oddly satisfying crunchy rainbow soap cuts to put you to sleep ✨",
     tags: "#asmr #soap #relaxing #satisfying",
     likes: "890.3K",
     comments: "4.1K",
-    bgClass: "feed-bg-green",
-    animationType: "soap",
+    sound: "♫ Crunchy Sounds ASMR Vol 2",
+    component: SoapVideo,
   },
   {
     id: 5,
-    author: "@retro_vibes",
-    avatar: "👾",
-    caption: "POV: Playing dating sims on your phone past bedtime with Miss Oishii",
-    tags: "#spookyfrutti #gaming #romance #arcade",
+    author: "@retro_arcader",
+    avatarIcon: "🎮",
+    caption: "POV: Trying to play dating sims past bedtime next to Miss Oishii",
+    tags: "#spookyfrutti #gaming #arcade",
     likes: "439.1K",
     comments: "2.0K",
-    bgClass: "feed-bg-crimson",
-    animationType: "gamer",
+    sound: "♫ Spooky Frutti Arcade Theme",
+    component: GamerVideo,
   },
 ];
 
@@ -92,115 +99,85 @@ export default function PhoneFeed({
   const [currentVideoIdx, setCurrentVideoIdx] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
 
+  // Auto-scroll TikTok video every 4.8 seconds
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentVideoIdx((prev) => (prev + 1) % FEED_VIDEOS.length);
       setIsLiked(false);
-    }, 3800);
+    }, 4800);
     return () => clearInterval(timer);
   }, []);
 
   const video = FEED_VIDEOS[currentVideoIdx];
+  const VideoComponent = video.component;
 
   return (
-    <div className={`pixel-phone-case window ${isPhoneSnatched ? "phone-snatched" : ""}`}>
-      {/* Phone screen with stepped pixel border */}
-      <div className="pixel-phone-screen">
-        {/* Pixel Status Bar */}
-        <div className="pixel-status-bar">
-          <span className="pixel-status-time">11:42 PM</span>
-          <div className="pixel-status-notch">
-            <span className="pixel-notch-dot" />
-            <span className="pixel-notch-bar" />
+    <div className={`phone-mockup window ${isPhoneSnatched ? "phone-snatched" : ""}`}>
+      {/* Phone Screen Container */}
+      <div className="phone-screen">
+        {/* Status Bar (from screenshot: 11:42 PM - 5G [■■■ ]) */}
+        <div className="phone-status-bar">
+          <span className="status-time">11:42 PM</span>
+          <div className="status-notch">
+            <span className="notch-pill" />
           </div>
-          <div className="pixel-status-meters">
-            <span>5G</span>
-            <span>[■■■ ]</span>
+          <div className="status-meters">
+            <span className="status-5g">5G</span>
+            <span className="status-battery">[■■■ ]</span>
           </div>
         </div>
 
-        {/* Pixel TikTok Video Stage */}
-        <div className={`pixel-tiktok-stage ${video.bgClass}`}>
-          {/* Animated retro pixel content */}
-          <div className="pixel-video-anim">
-            {video.animationType === "dance" && (
-              <div className="anim-dance">
-                <span className="pixel-actor">💃</span>
-                <div className="pixel-eq-bars">
-                  <span />
-                  <span />
-                  <span />
-                  <span />
-                </div>
-              </div>
-            )}
-            {video.animationType === "ramen" && (
-              <div className="anim-ramen">
-                <span className="pixel-actor">🍜</span>
-                <span className="pixel-steam">♨️</span>
-              </div>
-            )}
-            {video.animationType === "cat" && (
-              <div className="anim-cat">
-                <span className="pixel-actor">🐱💤</span>
-                <span className="pixel-z z1">Z</span>
-                <span className="pixel-z z2">z</span>
-              </div>
-            )}
-            {video.animationType === "soap" && (
-              <div className="anim-soap">
-                <span className="pixel-actor">🧼✂️</span>
-                <span className="pixel-sparkles">✦✦✦</span>
-              </div>
-            )}
-            {video.animationType === "gamer" && (
-              <div className="anim-gamer">
-                <span className="pixel-actor">🎮💖</span>
-                <span className="pixel-hearts-float">♥♥♥</span>
-              </div>
-            )}
+        {/* Video Stage Canvas */}
+        <div className="tiktok-video-stage">
+          <div className="video-component-wrapper">
+            <VideoComponent />
           </div>
 
-          {/* TikTok Right Action Buttons in Retro Pixel Style */}
-          <div className="pixel-tiktok-sidebar">
-            <div className="pixel-side-btn avatar-btn">
-              <span className="pixel-avatar">{video.avatar}</span>
-              <span className="pixel-badge">+</span>
+          {/* Right Action Sidebar (From screenshot) */}
+          <div className="tiktok-sidebar">
+            <div className="sidebar-btn avatar-btn">
+              <span className="avatar-circle">{video.avatarIcon}</span>
+              <span className="plus-badge">+</span>
             </div>
+
             <button
               type="button"
-              className={`pixel-side-btn like-btn ${isLiked ? "liked" : ""}`}
+              className={`sidebar-btn like-btn ${isLiked ? "liked" : ""}`}
               onClick={() => setIsLiked(!isLiked)}
               title="Like video"
             >
-              <span className="pixel-btn-icon">{isLiked ? "♥" : "♡"}</span>
-              <span className="pixel-btn-count">{video.likes}</span>
+              <span className="sidebar-icon">{isLiked ? "❤️" : "🤍"}</span>
+              <span className="sidebar-count">{video.likes}</span>
             </button>
-            <div className="pixel-side-btn">
-              <span className="pixel-btn-icon">💬</span>
-              <span className="pixel-btn-count">{video.comments}</span>
+
+            <div className="sidebar-btn">
+              <span className="sidebar-icon">💬</span>
+              <span className="sidebar-count">{video.comments}</span>
             </div>
-            <div className="pixel-side-btn">
-              <span className="pixel-btn-icon">↗</span>
-              <span className="pixel-btn-count">SHARE</span>
+
+            <div className="sidebar-btn share-btn">
+              <span className="sidebar-icon">↗</span>
+              <span className="sidebar-count">SHARE</span>
             </div>
-            <div className="pixel-side-btn disc-btn">
-              <span className="pixel-disc">💿</span>
+
+            <div className="sidebar-btn disc-btn">
+              <span className="vinyl-disc">💿</span>
             </div>
           </div>
 
-          {/* TikTok Bottom Caption Info in Pixel Font */}
-          <div className="pixel-tiktok-info">
-            <span className="pixel-author">{video.author}</span>
-            <p className="pixel-caption">{video.caption}</p>
-            <span className="pixel-tags">{video.tags}</span>
-            <div className="pixel-music-row">
-              <span>♫ Original Sound - Spooky Frutti Beats</span>
+          {/* Bottom-Left Video Caption Info (From screenshot) */}
+          <div className="tiktok-info">
+            <span className="author-handle">{video.author}</span>
+            <p className="caption-text">{video.caption}</p>
+            <span className="tags-text">{video.tags}</span>
+            <div className="music-ticker">
+              <span className="music-icon">🎵</span>
+              <span className="music-name">{video.sound}</span>
             </div>
           </div>
 
-          {/* Notification Stack on Top */}
-          <div className="pixel-notif-container" aria-live="polite">
+          {/* Notification Banners stacked on top of the phone screen */}
+          <div className="notification-stack-container" aria-live="polite">
             {notifications.map((notif, idx) => (
               <NotificationBanner
                 key={notif.instanceId}
@@ -213,15 +190,17 @@ export default function PhoneFeed({
             ))}
           </div>
 
-          {/* Pixel Navigation Bar at Bottom */}
-          <div className="pixel-bottom-nav">
-            <span className="nav-tab active-tab">[HOME]</span>
-            <span className="nav-tab">[NOW]</span>
-            <span className="nav-tab nav-add">[+]</span>
-            <span className="nav-tab">[INBOX]</span>
-            <span className="nav-tab">[ME]</span>
+          {/* Bottom Navigation Tabs: [HOME] [NOW] [+] [INBOX] [ME] (From screenshot) */}
+          <div className="tiktok-bottom-tabs">
+            <span className="tab-pill active">[HOME]</span>
+            <span className="tab-pill">[NOW]</span>
+            <span className="tab-pill add-tab">[+]</span>
+            <span className="tab-pill">[INBOX]</span>
+            <span className="tab-pill">[ME]</span>
           </div>
-          <div className="pixel-home-bar" />
+
+          {/* Phone Bottom Home Bar */}
+          <div className="phone-home-indicator" />
         </div>
       </div>
     </div>
