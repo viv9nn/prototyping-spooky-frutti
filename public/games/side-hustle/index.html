@@ -106,7 +106,7 @@ const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.r
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = a => a[Math.floor(Math.random() * a.length)];
-const money = n => '\u2665' + Math.max(0, Math.round(n)).toLocaleString('en-US');
+const money = n => '$' + Math.max(0, Math.round(n)).toLocaleString('en-US');
 function seeded(s) { return () => (s = (s * 16807) % 2147483647) / 2147483647; }
 function layer(draw, w = W, h = H) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -250,25 +250,25 @@ function schedule() {
 const paused = () => scene && scene.isPaused && scene.isPaused();
 
 /* ---------------------------------------------------------------- save */
-/* Hearts are the site's one currency. This reads and writes the same localStorage
-   key as lib/wallet.ts, so the site's header updates through its storage listener. */
-const HEARTS_KEY = 'arcade-hearts';
-let hearts = null;
-function getHearts() {
-  if (hearts === null) {
+/* This reads and writes the same localStorage key as the site's money wallet in
+   lib/wallet.ts, so the site's header updates through its storage listener. */
+const CASH_KEY = 'arcade-money';
+let cash = null;
+function getCash() {
+  if (cash === null) {
     let saved = 0;
-    try { saved = Number(localStorage.getItem(HEARTS_KEY)); } catch (e) {}
-    hearts = Number.isSafeInteger(saved) && saved >= 0 ? saved : 0;
+    try { saved = Number(localStorage.getItem(CASH_KEY)); } catch (e) {}
+    cash = Number.isSafeInteger(saved) && saved >= 0 ? saved : 0;
   }
-  return hearts;
+  return cash;
 }
-function setHearts(n) {
-  hearts = Math.max(0, Math.round(n));
-  try { localStorage.setItem(HEARTS_KEY, String(hearts)); } catch (e) {}
+function setCash(n) {
+  cash = Math.max(0, Math.round(n));
+  try { localStorage.setItem(CASH_KEY, String(cash)); } catch (e) {}
 }
-function addHearts(n) { if (n > 0) setHearts(getHearts() + Math.round(n)); }
-function spendHearts(n) { if (n > getHearts()) return false; if (n > 0) setHearts(getHearts() - n); return true; }
-addEventListener('storage', e => { if (e.key === HEARTS_KEY || e.key === null) hearts = null; });
+function addCash(n) { if (n > 0) setCash(getCash() + Math.round(n)); }
+function spendCash(n) { if (n > getCash()) return false; if (n > 0) setCash(getCash() - n); return true; }
+addEventListener('storage', e => { if (e.key === CASH_KEY || e.key === null) cash = null; });
 
 const SAVE_KEY = 'spooky-frutti-v2';
 let save = { rep: {}, best: {}, busts: 0, won: false };
@@ -417,28 +417,28 @@ const portraitImg = layer(r => {
 function portrait(x, y) { g.drawImage(portraitImg, x, y); }
 
 /* ---------------------------------------------------------------- hustles */
-const HEART_RATE = .1;  // tunes every payout against what other chapters award
+const PAY_RATE = .1;  // tunes every payout against what other chapters award
 const HUSTLES = [
   { id: 'dogs', name: 'HOT DOGS', risk: 1, pay: 1, time: 45, finePct: 0, fineMin: 3, keep: true, buyIn: 0,
     blurb: 'Honest money. Match each order before the line walks off.',
     how: ['ARROW KEYS ADD TOPPINGS', 'MATCH THE ORDER LEFT TO RIGHT', '3 WALK-OFFS AND YOUR PERMIT IS PULLED'],
-    bust: 'Keep your take, lose \u26653.' },
+    bust: 'Keep your take, lose $3.' },
   { id: 'deal', name: 'DRUG DEALER', risk: 2, pay: 2, time: 50, finePct: .10, fineMin: 20, buyIn: 10,
     blurb: 'Grab the goods, hit buyers across town, stay out of sight.',
     how: ['ARROWS MOVE. DUMPSTERS RELOAD YOUR STASH', 'WALK INTO BUYERS TO SELL', 'SHADES = UNDERCOVER. ANY COP TOUCH = BUSTED'],
-    bust: 'Lose stake, take + 10% of your hearts.' },
+    bust: 'Lose stake, take + 10% of your cash.' },
   { id: 'pimp', name: 'PIMP', risk: 3, pay: 3, time: 50, finePct: .20, fineMin: 80, buyIn: 50,
     blurb: 'Fur coat, big hat. Run the boulevard and defend your corners.',
     how: ['SPACE: COLLECT FROM CREW, SMACK RIVALS', 'UP AT A DOORWAY WHEN THE COPS ROLL BY', '3 LOST CREW ENDS THE NIGHT. FULL HEAT = BUSTED'],
-    bust: 'Lose stake, take + 20% of your hearts.' },
+    bust: 'Lose stake, take + 20% of your cash.' },
   { id: 'heist', name: 'HEIST', risk: 4, pay: 4, time: null, finePct: .35, fineMin: 400, buyIn: 200,
     blurb: 'Every safe doubles the score and the sirens. Then you still have to drive.',
     how: ['SPACE IN THE GREEN CRACKS A TUMBLER', 'AFTER EACH SAFE: GO DEEPER OR RUN', 'LEFT / RIGHT TO DODGE. 3 CRASHES = BUSTED'],
-    bust: 'Lose stake, take + 35% of your hearts.' },
+    bust: 'Lose stake, take + 35% of your cash.' },
   { id: 'fraud', name: 'BANK FRAUD', risk: 5, pay: 5, time: null, finePct: .60, fineMin: 1500, buyIn: 1000,
     blurb: 'Checks grow fast and so does the trace. Know when to vanish.',
     how: ['RIGHT: CASH IT IF IT MATCHES THE TARGET CARD', 'LEFT: SHRED FAKES (NAME, COLOR, SIGNATURE)', 'DOWN: CASH OUT. FULL TRACE = FEDS'],
-    bust: 'Lose stake, take + 60% of your hearts.' },
+    bust: 'Lose stake, take + 60% of your cash.' },
   { id: 'gamble', name: 'GAMBLING', risk: 6, pay: 6, time: null, finePct: 0, fineMin: 0, buyIn: 1, ownStake: true,
     blurb: 'One wheel. Bet a slice or go all in, then let it ride as long as you dare.',
     how: ['LEFT / RIGHT: SET YOUR BET. UP / DOWN: PICK A COLOR', 'RED OR BLACK PAYS X2. GREEN PAYS X14', 'ALL IN ON GREEN PAYS X30. AFTER A WIN: RIDE OR CASH OUT'],
@@ -447,7 +447,7 @@ const HUSTLES = [
 const GOAL = 100000;
 const RANKS = [[0, 'WINDFALL'], [100, 'SMALL FRY'], [1000, 'BAD APPLE'], [10000, 'BIG APPLE'], [50000, 'CORE BOSS'], [GOAL, 'RETIRED LEGEND']];
 const rankOf = b => RANKS.filter(r => b >= r[0]).pop()[1];
-const canAfford = h => getHearts() >= h.buyIn;
+const canAfford = h => getCash() >= h.buyIn;
 
 /* --- hot dogs ------------------------------------------------------ */
 const TOPS = {
@@ -1224,7 +1224,7 @@ const CASINO_BG = layer(r => {
 function gameGamble(run) {
   const BETS = [{ l: '25%', f: .25 }, { l: '50%', f: .5 }, { l: 'ALL IN', f: 1 }], CALLS = ['red', 'black', 'green'];
   let phase = 'bet', bet = 2, call = 0, pos = 0, from = 0, to = 0, st = 0, T = 2.4, landed = null, pot = 0, stake = 0, allIn = false, t = 0, lastPocket = 0, rides = 0;
-  const stakeFor = i => Math.max(1, i === 2 ? getHearts() : Math.floor(getHearts() * BETS[i].f));
+  const stakeFor = i => Math.max(1, i === 2 ? getCash() : Math.floor(getCash() * BETS[i].f));
   const mult = () => CALLS[call] === 'green' ? (allIn ? 30 : 14) : 2;
   function spin() {
     phase = 'spin'; st = 0; from = pos;
@@ -1243,7 +1243,7 @@ function gameGamble(run) {
         if (hit.down) { call = (call + 1) % 3; sfx('move'); }
         if (hit.a) {
           stake = stakeFor(bet); allIn = bet === 2;
-          if (!spendHearts(stake)) { sfx('bad'); return; }
+          if (!spendCash(stake)) { sfx('bad'); return; }
           pot = stake; run.stake = stake; spin();
         }
       } else if (phase === 'spin') {
@@ -1341,10 +1341,10 @@ function titleScene() {
       text('HUSTLE', 12, 44, UI.yellow, { s: 5, sh: UI.ink });
       R(12, 76, 90, 11, UI.pink); R(11, 77, 92, 9, UI.pink); text('SPOOKY FRUTTI', 57, 79, UI.ink, { c: 1 });
       uiWindow(12, 104, 150, 54);
-      text('FIVE WAYS TO EARN HEARTS.', 18, 110, UI.white);
+      text('FIVE WAYS TO EARN CASH.', 18, 110, UI.white);
       text('ONE WAY TO LOSE THEM ALL.', 18, 118, UI.white);
       text('REACH ' + money(GOAL) + ' TO RETIRE.', 18, 126, UI.pink);
-      text('YOU HAVE ' + money(getHearts()), 18, 134, UI.yellow);
+      text('YOU HAVE ' + money(getCash()), 18, 134, UI.yellow);
       if (Math.floor(t * 2.5) % 2 === 0) text('PRESS SPACE OR CLICK', 18, 147, UI.yellow);
     }
   };
@@ -1384,9 +1384,9 @@ function menuScene(sel0 = 0) {
     draw() {
       g.drawImage(CHECKER, 0, 0);
       R(0, 0, W, 13, UI.win); R(0, 13, W, 1, UI.white); R(0, 14, W, 1, UI.ink);
-      text(money(getHearts()), 4, 4, UI.pink, { sh: UI.ink });
-      text(rankOf(getHearts()), 160, 4, UI.yellow, { c: 1, sh: UI.ink });
-      const gw = 62, frac = clamp(getHearts() / GOAL, 0, 1);
+      text(money(getCash()), 4, 4, UI.pink, { sh: UI.ink });
+      text(rankOf(getCash()), 160, 4, UI.yellow, { c: 1, sh: UI.ink });
+      const gw = 62, frac = clamp(getCash() / GOAL, 0, 1);
       text(money(GOAL), W - gw - 6, 4, UI.white, { r: 1 });
       R(W - gw - 3, 4, gw, 5, UI.ink); R(W - gw - 3, 4, gw * frac, 5, UI.pink);
       HUSTLES.forEach((h, i) => {
@@ -1410,9 +1410,9 @@ function menuScene(sel0 = 0) {
       wrap(h.blurb, 126).forEach(l => { text(l, 185, yy, UI.white); yy += 7; });
       yy += 1;
       wrap('BUSTED: ' + h.bust, 126).forEach(l => { text(l, 185, yy, UI.pink); yy += 7; });
-      if (denied > 0) text('EARN MORE HEARTS FIRST', 89, 170, UI.pink, { c: 1, sh: UI.ink });
+      if (denied > 0) text('EARN MORE CASH FIRST', 89, 170, UI.pink, { c: 1, sh: UI.ink });
       else if (Math.floor(t * 2) % 2 === 0) text('SPACE TO HUSTLE', 89, 170, UI.yellow, { c: 1, sh: UI.ink });
-      text(confirmReset > 0 ? 'R AGAIN: CLEAR REP (KEEPS HEARTS)' : 'R CLEAR REP   M ' + (muted ? 'UNMUTE' : 'MUTE'), W - 4, 170, confirmReset > 0 ? UI.pink : UI.white, { r: 1, sh: UI.ink });
+      text(confirmReset > 0 ? 'R AGAIN: CLEAR REP (KEEPS CASH)' : 'R CLEAR REP   M ' + (muted ? 'UNMUTE' : 'MUTE'), W - 4, 170, confirmReset > 0 ? UI.pink : UI.white, { r: 1, sh: UI.ink });
     }
   };
 }
@@ -1448,11 +1448,11 @@ function briefScene(h) {
 function playScene(h) {
   const lvl = save.rep[h.id] || 1;
   const run = {
-    h, lvl, take: 0, stake: 0, heat: 0, pay: (1 + .35 * (lvl - 1)) * HEART_RATE, spd: 1 + .1 * (lvl - 1), time: h.time, done: null, msg: '', label: null,
+    h, lvl, take: 0, stake: 0, heat: 0, pay: (1 + .35 * (lvl - 1)) * PAY_RATE, spd: 1 + .1 * (lvl - 1), time: h.time, done: null, msg: '', label: null,
     bust(msg) { if (this.done) return; this.done = 'bust'; this.msg = msg; endT = 1.5; sfx('bust'); bump(7); flashOn('#ff2030', .7); },
     finish(msg) { if (this.done) return; this.done = 'clean'; this.msg = msg; endT = 1.2; sfx('win'); flashOn('#7fe07a', .3); }
   };
-  if (!h.ownStake && spendHearts(h.buyIn)) run.stake = h.buyIn;
+  if (!h.ownStake && spendCash(h.buyIn)) run.stake = h.buyIn;
   const game = GAMES[h.id](run);
   let cd = h.ownStake ? 0 : 1.5, endT = 0, last = 3, isP = false;
   return {
@@ -1488,7 +1488,7 @@ function playScene(h) {
       // HUD
       R(0, 0, W, 13, UI.win); R(0, 13, W, 1, UI.white);
       text(h.name, 3, 4, UI.yellow, { sh: UI.ink });
-      if (h.id === 'gamble') text(money(getHearts()) + ' LEFT IN THE WALLET', W - 3, 4, UI.pink, { r: 1, sh: UI.ink });
+      if (h.id === 'gamble') text(money(getCash()) + ' LEFT IN THE WALLET', W - 3, 4, UI.pink, { r: 1, sh: UI.ink });
       else {
         text(money(run.take), 104, 4, UI.pink, { c: 1, sh: UI.ink });
         const lab = { dogs: 'STRIKES', deal: 'HEAT', pimp: 'HEAT', heist: 'ALARM', fraud: 'TRACE' }[h.id];
@@ -1520,21 +1520,22 @@ function playScene(h) {
 
 function resultScene(run) {
   const h = run.h, bust = run.done === 'bust';
-  const before = getHearts();
+  const before = getCash();
   let fine = 0, paid = 0;
   if (bust) {
     fine = Math.min(before + (h.keep ? run.take : 0), Math.max(Math.round(before * h.finePct), h.fineMin));
     if (h.keep) paid = run.take;
-    setHearts(before + paid - fine);
+    setCash(before + paid - fine);
     save.rep[h.id] = 1; save.busts = (save.busts || 0) + 1;
   } else {
     paid = run.stake + Math.round(run.take);
-    addHearts(paid);
+    addCash(paid);
     if (!h.ownStake) save.rep[h.id] = Math.min(5, (save.rep[h.id] || 1) + 1);
     if (run.take > (save.best[h.id] || 0)) save.best[h.id] = Math.round(run.take);
   }
   persist();
-  const after = getHearts(), newRep = save.rep[h.id], winNow = after >= GOAL && !save.won;
+  if (parent !== window) parent.postMessage({ type: 'side-hustle-run', money: getCash() }, location.origin);
+  const after = getCash(), newRep = save.rep[h.id], winNow = after >= GOAL && !save.won;
   const rain = heartRain(bust ? 0 : Math.round(Math.min(40, 6 + Math.log10(paid + 1) * 6))); let t = 0, shown = before, drop = 0;
   if (bust) sfx('bust'); else if (paid > 0) sfx('win');
   return {
@@ -1565,9 +1566,9 @@ function resultScene(run) {
       if (run.stake) line(bust ? 'STAKE LOST' : 'STAKE BACK', (bust ? minus : plus)(run.stake), bust ? UI.pink : '#7fe07a');
       if (bust && !h.keep && run.take) line('SEIZED', minus(run.take), UI.pink);
       if (!bust || h.keep) line('THE TAKE', plus(run.take), '#7fe07a');
-      if (bust && fine) line(h.finePct ? 'BAIL (' + Math.round(h.finePct * 100) + '% OF HEARTS)' : 'FINE', minus(fine), UI.pink);
+      if (bust && fine) line(h.finePct ? 'BAIL (' + Math.round(h.finePct * 100) + '% OF CASH)' : 'FINE', minus(fine), UI.pink);
       R(18, y, 198, 1, UI.white); y += 4;
-      text('HEARTS', 18, y, UI.pink, { s: 2, sh: UI.ink }); text(money(shown), 216, y, UI.yellow, { s: 2, r: 1, sh: UI.ink }); y += 16;
+      text('CASH', 18, y, UI.pink, { s: 2, sh: UI.ink }); text(money(shown), 216, y, UI.yellow, { s: 2, r: 1, sh: UI.ink }); y += 16;
       if (h.id !== 'gamble') { text(bust ? 'REP RESET TO 1' : 'REP ' + newRep + ': PAYS MORE, MOVES FASTER', 18, y, bust ? UI.pink : UI.yellow); y += 8; }
       if (after === 0) text('FLAT BROKE. HOT DOGS ARE ALWAYS HIRING.', 18, y, UI.pink);
       if (t > .6 && Math.floor(t * 2.5) % 2 === 0) text('SPACE TO CONTINUE', 18, 158, UI.white);
