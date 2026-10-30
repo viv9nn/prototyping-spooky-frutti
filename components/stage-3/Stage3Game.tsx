@@ -248,67 +248,26 @@ export default function Stage3Game() {
           gazeTimerRef.current = setTimeout(() => {
             loopsRef.current.scheduleGazeCycle();
           }, 900);
-        } else {
-          setGazeState("LOOKING");
-          const lookDurationSec = getInterpolatedValue(
-            STAGE_3_CONFIG.lookDurationStartSec,
-            STAGE_3_CONFIG.lookDurationEndSec,
-            progress
-          );
-
-          gazeTimerRef.current = setTimeout(() => {
-            loopsRef.current.scheduleGazeCycle();
-          }, lookDurationSec * 1000);
+          return;
         }
+
+        setGazeState("LOOKING");
+
+        const lookSec = getRandomBetween(1.2, 1.8);
+        gazeTimerRef.current = setTimeout(() => {
+          if (stateRef.current.phase !== "PLAYING") return;
+          loopsRef.current.scheduleGazeCycle();
+        }, lookSec * 1000);
       }, tellSec * 1000);
     }, safeDurationSec * 1000);
   }, []);
 
   useEffect(() => {
-    loopsRef.current = {
-      scheduleNextSpawn,
-      scheduleGazeCycle,
-    };
+    loopsRef.current.scheduleNextSpawn = scheduleNextSpawn;
+    loopsRef.current.scheduleGazeCycle = scheduleGazeCycle;
   }, [scheduleNextSpawn, scheduleGazeCycle]);
 
-  // Handle Stage Clear (PASS)
-  const handleStageClear = useCallback(() => {
-    clearAllTimers();
-    setPhase("CLEAR");
-    setGazeState("NOT_LOOKING");
-    setSubState("LAUGHING");
-    playClearFanfare();
-
-    const finalSuspicion = stateRef.current.suspicion;
-    const finalCaught = stateRef.current.timesCaught;
-    const finalSpotted = stateRef.current.timesSpotted;
-
-    let grade: StageGrade = "C";
-    if (finalCaught === 0 && finalSpotted === 0 && finalSuspicion === 0) {
-      grade = "S";
-    } else if (finalSuspicion < 40) {
-      grade = "A";
-    } else if (finalSuspicion < 70) {
-      grade = "B";
-    } else {
-      grade = "C";
-    }
-
-    const heartsEarned = STAGE_3_CONFIG.heartsReward[grade];
-    addHearts(heartsEarned);
-
-    finishChapter("phone", Math.max(0, 100 - finalSuspicion));
-
-    recordStageResult("stage-3", {
-      grade,
-      suspicion: finalSuspicion,
-      timesCaught: finalCaught,
-      timesSpotted: finalSpotted,
-      clearedAt: Date.now(),
-    });
-  }, [clearAllTimers]);
-
-  // Handle SPOTTED penalty (+15 Suspicion when touching/flicking while she looks)
+  // Handle SPOTTED penalty (+15 Suspicion when touching/flicking banner while she's looking)
   const handleGrabNotification = useCallback(() => {
     if (stateRef.current.gazeState === "LOOKING") {
       const now = performance.now();
@@ -316,14 +275,7 @@ export default function Stage3Game() {
         lastSpottedTimeRef.current = now;
         playSpottedSound();
         setTimesSpotted((prev) => prev + 1);
-
-        const spottedLines = [
-          "WHAT are you doing with your hand?!",
-          "Why are you hiding the screen from me?!",
-          "What are you swiping away so fast?!",
-        ];
-        const line = spottedLines[Math.floor(Math.random() * spottedLines.length)];
-        triggerGirlfriendSpeech(line, 2500);
+        triggerGirlfriendSpeech("WHAT ARE YOU DOING?? Why are you touching your screen?!", 2800);
 
         setSuspicion((prev) => {
           const next = Math.min(100, prev + STAGE_3_CONFIG.spottedPenalty);
@@ -336,113 +288,132 @@ export default function Stage3Game() {
     }
   }, [handleFailure, triggerGirlfriendSpeech]);
 
-  // Dismiss a notification
+  // Handle banner dismissal
   const handleDismissNotification = useCallback((instanceId: string) => {
     setNotifications((prev) => prev.filter((n) => n.instanceId !== instanceId));
   }, []);
 
-  // Instruction Countdown effect
+  // Instruction 3s Countdown Loop
   useEffect(() => {
     if (phase !== "INSTRUCTION") return;
-
-    const interval = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
+    const timer = setTimeout(() => {
+      setCountdown((c) => {
+        if (c <= 1) {
           setPhase("PLAYING");
           return 0;
         }
-        return prev - 1;
+        return c - 1;
       });
     }, 1000);
-
-    return () => clearInterval(interval);
+    return () => clearTimeout(timer);
   }, [phase]);
 
-  // Playing loop effect
+  // Main 60-Second Game Loop
   useEffect(() => {
-    if (phase !== "PLAYING") {
-      clearAllTimers();
-      return;
-    }
+    if (phase !== "PLAYING") return;
 
-    const initialSpawn = setTimeout(() => {
+    // Start gaze escalation and notification spawner
+    loopsRef.current.scheduleGazeCycle();
+    loopsRef.current.scheduleNextSpawn();
+
+    // Spawn first notification shortly after start
+    const initialSpawnTimer = setTimeout(() => {
       spawnNotification();
-      scheduleNextSpawn();
-    }, 1200);
-
-    scheduleGazeCycle();
+    }, 1000);
 
     const clockInterval = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(clockInterval);
-          handleStageClear();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
 
-    const tickInterval = setInterval(() => {
-      if (stateRef.current.gazeState === "LOOKING") {
-        setNotifications((prev) => {
-          let triggeredCatch = false;
-          let catchMessage = "";
+    // Reading Check Interval (every 100ms)
+    const readCheckInterval = setInterval(() => {
+      if (stateRef.current.phase !== "PLAYING") return;
+      if (stateRef.current.gazeState !== "LOOKING") return;
 
-          const updated = prev.map((notif) => {
-            if (notif.type === "risky" && !notif.hasBeenCaught && !notif.isExiting) {
-              const newSeenDuration = notif.seenByGirlfriendDuration + 0.05;
-              if (newSeenDuration >= STAGE_3_CONFIG.readTimeSec && !triggeredCatch) {
-                triggeredCatch = true;
-                catchMessage = notif.caughtDialogue || `Who's ${notif.sender}?!`;
-                return {
-                  ...notif,
-                  seenByGirlfriendDuration: newSeenDuration,
-                  hasBeenCaught: true,
-                  isExiting: true,
-                };
-              }
-              return { ...notif, seenByGirlfriendDuration: newSeenDuration };
+      setNotifications((prevList) => {
+        let caughtTriggered = false;
+        let caughtDialogue = "Who's Jessica??!";
+
+        const updated = prevList.map((notif) => {
+          if (notif.type === "risky" && !notif.hasBeenCaught) {
+            const nextDuration = notif.seenByGirlfriendDuration + 0.1;
+            if (nextDuration >= STAGE_3_CONFIG.readTimeSec && !caughtTriggered) {
+              caughtTriggered = true;
+              caughtDialogue = notif.caughtDialogue || `WHO'S ${notif.sender.toUpperCase()}?!`;
+              return {
+                ...notif,
+                seenByGirlfriendDuration: nextDuration,
+                hasBeenCaught: true,
+              };
             }
-            return notif;
-          });
-
-          if (triggeredCatch) {
-            handleCaught(catchMessage);
+            return { ...notif, seenByGirlfriendDuration: nextDuration };
           }
-
-          return updated;
+          return notif;
         });
-      }
-    }, 50);
+
+        if (caughtTriggered) {
+          handleCaught(caughtDialogue);
+        }
+
+        return updated;
+      });
+    }, 100);
 
     return () => {
-      clearTimeout(initialSpawn);
+      clearTimeout(initialSpawnTimer);
       clearInterval(clockInterval);
-      clearInterval(tickInterval);
+      clearInterval(readCheckInterval);
       clearAllTimers();
     };
-  }, [
-    phase,
-    scheduleGazeCycle,
-    scheduleNextSpawn,
-    spawnNotification,
-    handleCaught,
-    handleStageClear,
-    clearAllTimers,
-  ]);
+  }, [phase, spawnNotification, handleCaught, clearAllTimers]);
 
-  // Sound toggle
+  // Stage Clear Condition (survived 60 seconds with Suspicion < 100)
+  useEffect(() => {
+    if (phase === "PLAYING" && timeLeft === 0 && suspicion < 100) {
+      const clearTimer = setTimeout(() => {
+        clearAllTimers();
+        setPhase("CLEAR");
+        playClearFanfare();
+
+        let grade: StageGrade = "C";
+        if (timesCaught === 0 && timesSpotted === 0) {
+          grade = "S";
+        } else if (suspicion < 40) {
+          grade = "A";
+        } else if (suspicion < 70) {
+          grade = "B";
+        }
+
+        const heartsReward = STAGE_3_CONFIG.heartsReward[grade];
+        addHearts(heartsReward);
+        finishChapter("phone", heartsReward);
+
+        recordStageResult("stage-3", {
+          grade,
+          suspicion,
+          timesCaught,
+          timesSpotted,
+          clearedAt: Date.now(),
+        });
+      }, 0);
+      return () => clearTimeout(clearTimer);
+    }
+  }, [phase, timeLeft, suspicion, timesCaught, timesSpotted, clearAllTimers]);
+
   const toggleMute = () => {
     const next = !isAudioMuted;
     setIsAudioMuted(next);
     setMuted(next);
   };
 
-  // Grade calculation for UI
   const calculateCurrentGrade = (): { grade: StageGrade; hearts: number } => {
-    if (timesCaught === 0 && timesSpotted === 0 && suspicion === 0) {
+    if (timesCaught === 0 && timesSpotted === 0) {
       return { grade: "S", hearts: STAGE_3_CONFIG.heartsReward.S };
     }
     if (suspicion < 40) {
@@ -459,68 +430,58 @@ export default function Stage3Game() {
 
   return (
     <div className="stage-3-container">
-      {/* HUD Header (Aesthetic Pixel Arcade Bezel) */}
-      <header className="stage3-hud-bar">
-        {/* Timer */}
+      {/* Top HUD (Pixelized Layout from Screenshot) */}
+      <header className="stage3-hud">
+        {/* Timer Card */}
         <div className="hud-card hud-timer window">
-          <div className="hud-header-label">
-            <span className="hud-label-text">⏱ TIME REMAINING</span>
-          </div>
-          <div className="hud-timer-digits">
+          <span className="hud-label">TIME REMAINING</span>
+          <div className="hud-digits timer-digits">
+            <span className="timer-icon">⏱️</span>
             <span>{timeLeft.toString().padStart(2, "0")}s</span>
           </div>
-          <div className="hud-pixel-segmented-bar">
-            {Array.from({ length: 12 }).map((_, i) => {
-              const active = i < Math.ceil((timeLeft / STAGE_3_CONFIG.stageLengthSec) * 12);
+          <div className="timer-segmented-bar">
+            {Array.from({ length: 14 }).map((_, i) => {
+              const active = i < Math.ceil((timeLeft / STAGE_3_CONFIG.stageLengthSec) * 14);
               return (
                 <span
                   key={i}
-                  className={`hud-segment-block ${active ? "seg-gold" : "seg-off"}`}
+                  className={`timer-block ${active ? "active" : "inactive"}`}
                 />
               );
             })}
           </div>
         </div>
 
-        {/* Suspicion Meter */}
+        {/* Suspicion Meter Card */}
         <div className="hud-card hud-suspicion window">
-          <div className="hud-header-label">
-            <span className="hud-label-text">⚠️ SUSPICION</span>
+          <div className="suspicion-header">
+            <span className="hud-label">SUSPICION</span>
             <span
-              className={`suspicion-val-tag ${
-                suspicion >= 70 ? "val-danger" : suspicion >= 40 ? "val-warning" : "val-safe"
+              className={`suspicion-val ${
+                suspicion >= 70 ? "text-danger" : suspicion >= 40 ? "text-warning" : "text-safe"
               }`}
             >
               {suspicion} / 100
             </span>
           </div>
-          <div className="hud-pixel-segmented-bar">
-            {Array.from({ length: 20 }).map((_, i) => {
-              const active = i < Math.ceil((suspicion / 100) * 20);
-              const colorClass =
-                suspicion >= 70 ? "seg-danger" : suspicion >= 40 ? "seg-warning" : "seg-safe";
-              return (
-                <span
-                  key={i}
-                  className={`hud-segment-block ${active ? colorClass : "seg-off"}`}
-                />
-              );
-            })}
+          <div className="suspicion-track">
+            <div
+              className={`suspicion-fill ${
+                suspicion >= 70 ? "meter-danger" : suspicion >= 40 ? "meter-warning" : "meter-safe"
+              }`}
+              style={{ width: `${suspicion}%` }}
+            />
           </div>
         </div>
 
-        {/* Tries / Lives */}
+        {/* Tries / Lives Card */}
         <div className="hud-card hud-lives window">
-          <div className="hud-header-label">
-            <span className="hud-label-text">♥ TRIES</span>
-          </div>
-          <div className="hud-pixel-hearts">
+          <span className="hud-label">TRIES</span>
+          <div className="lives-row">
             {[1, 2, 3].map((heartIdx) => (
               <span
                 key={heartIdx}
-                className={`hud-heart-unit ${
-                  heartIdx <= livesLeft ? "heart-active" : "heart-spent"
-                }`}
+                className={`heart-unit ${heartIdx <= livesLeft ? "alive" : "spent"}`}
               >
                 ♥
               </span>
@@ -528,19 +489,19 @@ export default function Stage3Game() {
           </div>
         </div>
 
-        {/* Sound & Dev Controls */}
-        <div className="hud-card hud-controls-card window">
+        {/* Sound & Dev Action Buttons */}
+        <div className="hud-actions">
           <button
             type="button"
-            className="hud-pixel-btn"
+            className="hud-btn window"
             onClick={toggleMute}
             title={isAudioMuted ? "Unmute audio" : "Mute audio"}
           >
-            {isAudioMuted ? "🔇" : "🔊"}
+            {isAudioMuted ? "🔇" : "🔉"}
           </button>
           <button
             type="button"
-            className="hud-pixel-btn dev-toggle"
+            className="hud-btn dev-btn-toggle window"
             onClick={() => setShowDevControls(!showDevControls)}
             title="Toggle Dev Cheats"
           >
@@ -549,9 +510,9 @@ export default function Stage3Game() {
         </div>
       </header>
 
-      {/* Main Bedroom & Phone Stage Viewport */}
-      <div className="stage3-viewport">
-        {/* Left Side: Bed & Girlfriend Gaze */}
+      {/* Main Viewport Box (Framed with Stepped Pixel Window Border) */}
+      <div className="stage3-viewport window">
+        {/* Left Box: Bedside Bedroom Scene */}
         <div className="viewport-left">
           <GirlfriendGaze
             gazeState={gazeState}
@@ -561,7 +522,7 @@ export default function Stage3Game() {
           />
         </div>
 
-        {/* Center: Phone Mockup with TikTok Feed & Banners */}
+        {/* Right Box: Phone Mockup Screen with TikTok Feed & Banners */}
         <div className="viewport-center">
           <PhoneFeed
             notifications={notifications}
@@ -655,7 +616,7 @@ export default function Stage3Game() {
             </div>
 
             <div className="instruction-demo">
-              <div className="demo-banner">
+              <div className="demo-banner window">
                 <span className="demo-icon">💬</span>
                 <span>Jessica: miss you already 😘</span>
                 <span className="demo-flick-arrow">⬆️</span>
@@ -698,7 +659,7 @@ export default function Stage3Game() {
       {/* OVERLAY: Gag Failure */}
       {phase === "GAG_FAIL" && (
         <div className="stage3-gag-overlay">
-          <div className="gag-impact-text">
+          <div className="gag-impact-text window">
             <h1>BUSTED!! 💢</h1>
             <p>She snatched the phone right out of your hand!</p>
             <div className="gag-tries-remaining">
@@ -718,21 +679,21 @@ export default function Stage3Game() {
             </p>
 
             <div className="recap-tips-list">
-              <div className="recap-tip">
+              <div className="recap-tip window">
                 <span className="tip-num">1</span>
                 <div>
                   <strong>Watch Her Tell (👀 ❓)</strong>
                   <p>When her head starts turning, immediately stop touching the phone!</p>
                 </div>
               </div>
-              <div className="recap-tip">
+              <div className="recap-tip window">
                 <span className="tip-num">2</span>
                 <div>
                   <strong>Flick Fast and Upward</strong>
                   <p>Short, quick upward swipes work best on both trackpads and mice.</p>
                 </div>
               </div>
-              <div className="recap-tip">
+              <div className="recap-tip window">
                 <span className="tip-num">3</span>
                 <div>
                   <strong>Ignore Harmless Notifications</strong>
@@ -776,25 +737,25 @@ export default function Stage3Game() {
             </p>
 
             <div className="results-stats-grid">
-              <div className="stat-box">
+              <div className="stat-box window">
                 <span className="stat-label">FINAL SUSPICION</span>
                 <span className="stat-value">{suspicion} / 100</span>
               </div>
-              <div className="stat-box">
+              <div className="stat-box window">
                 <span className="stat-label">TIMES CAUGHT</span>
                 <span className="stat-value">{timesCaught}</span>
               </div>
-              <div className="stat-box">
+              <div className="stat-box window">
                 <span className="stat-label">TIMES SPOTTED</span>
                 <span className="stat-value">{timesSpotted}</span>
               </div>
-              <div className="stat-box stat-hearts">
+              <div className="stat-box window stat-hearts">
                 <span className="stat-label">HEARTS EARNED</span>
                 <span className="stat-value heart-bonus">+{currentResult.hearts} ♥</span>
               </div>
             </div>
 
-            <div className="results-grading-legend">
+            <div className="results-grading-legend window">
               <span className={currentResult.grade === "S" ? "active-rank" : ""}>S: Never caught</span>
               <span className={currentResult.grade === "A" ? "active-rank" : ""}>A: Suspicion &lt; 40</span>
               <span className={currentResult.grade === "B" ? "active-rank" : ""}>B: Suspicion &lt; 70</span>
