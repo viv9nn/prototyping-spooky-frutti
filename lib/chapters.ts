@@ -22,8 +22,8 @@ export const chapters: Chapter[] = [
   },
   {
     slug: "phone",
-    name: "Do Not Disturb",
-    blurb: "Embarrassing texts keep coming in. Turn your phone away before your date sees them!",
+    name: "Late-Night TikTok",
+    blurb: "Watching TikTok in bed with Miss Oishii. Secretly flick away risky notifications before she catches you!",
     icon: "/hub/icons/phone.png",
   },
   {
