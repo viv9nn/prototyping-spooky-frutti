@@ -13,6 +13,7 @@ Run it with `npm install`, then `npm run dev`, and open http://localhost:3000.
 | Header | `components/Header.tsx` |
 | Arcade name | `lib/arcade.ts` |
 | Hub (visual novel screen) | `app/page.tsx`, with art in `public/hub/` |
+| Side Hustle mini-game | `app/chapters/side-hustle/page.tsx`, with the game in `public/games/side-hustle/` |
 | "Coming soon" chapter page | `app/chapters/[slug]/page.tsx` |
 | Gift shop | `app/shop/page.tsx` |
 | Colors and global styles | `app/globals.css` |
@@ -33,3 +34,5 @@ spendHearts(5);              // true, or false if there aren't enough hearts
 ```
 
 Hearts are saved in the player's browser (localStorage), so they survive a refresh but aren't shared between devices.
+
+Side Hustle is a plain HTML game in a frame. It reads and writes the same `arcade-hearts` key as `lib/wallet.ts`, so its winnings and losses show up everywhere on the site. Its `HEART_RATE` constant sets how many hearts its hustles pay.

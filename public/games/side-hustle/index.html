@@ -1,0 +1,1616 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spooky Frutti Side Hustle</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one 320x180 screen in the Spooky Frutti Arcade palette, touch pad below it on phones. */
+:root {
+  color-scheme: dark;
+  --ink: #1c1440;
+  --window: #24287e;
+  --white: #fdfbff;
+  --pink: #ff8fc0;
+  --pink-deep: #e8487f;
+  --yellow: #ffe680;
+  --mono: "DotGothic16", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+html, body { height: 100%; }
+body {
+  background: conic-gradient(#2a2058 25%, #231a4c 0 50%, #2a2058 0 75%, #231a4c 0) 0 0 / 32px 32px;
+  color: var(--white);
+  font-family: var(--mono);
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding-block: 8px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+#screen {
+  display: block;
+  max-width: 100%;
+  image-rendering: pixelated;
+  background: #000;
+  outline: 4px solid var(--white);
+  touch-action: none;
+  cursor: pointer;
+}
+#screen:focus-visible { outline-color: var(--yellow); }
+.embed #help { display: none; }
+.embed #screen { outline: 0; }
+.embed body { padding: 0; gap: 0; }
+#help { color: var(--white); text-align: center; margin: 0; }
+#help kbd { font: inherit; color: var(--yellow); }
+#pad { display: none; width: 100%; max-width: 420px; justify-content: space-between; align-items: center; gap: 12px; }
+#dpad { display: grid; grid-template-columns: repeat(3, 56px); grid-template-rows: repeat(3, 48px); gap: 4px; }
+#pad button {
+  font: 700 18px var(--mono);
+  color: var(--white);
+  background: var(--window);
+  border: 0;
+  border-radius: 0;
+  box-shadow: inset -3px -3px 0 rgba(0,0,0,.35), inset 3px 3px 0 rgba(255,255,255,.1);
+  touch-action: none;
+}
+#pad button.on { background: var(--pink-deep); }
+#pad button:focus-visible { outline: 2px solid var(--yellow); }
+#ba { width: 96px; height: 96px; border-radius: 50% !important; background: var(--pink-deep) !important; color: var(--white) !important; }
+@media (pointer: coarse) {
+  #pad { display: flex; }
+  #help { display: none; }
+}
+</style>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
+<canvas id="screen" width="320" height="180" tabindex="0" aria-label="Spooky Frutti Side Hustle game screen"></canvas>
+<p id="help"><kbd>Arrows</kbd> or <kbd>WASD</kbd> move &nbsp; <kbd>Space</kbd> act &nbsp; <kbd>P</kbd> pause &nbsp; <kbd>M</kbd> mute</p>
+<div id="pad" aria-label="Touch controls">
+  <div id="dpad">
+    <span></span><button data-k="up" aria-label="Up">&#9650;</button><span></span>
+    <button data-k="left" aria-label="Left">&#9664;</button><button data-k="down" aria-label="Down">&#9660;</button><button data-k="right" aria-label="Right">&#9654;</button>
+  </div>
+  <button id="ba" data-k="a">GO</button>
+</div>
+
+<script>
+'use strict';
+/* ------------------------------------------------------------------ core */
+const W = 320, H = 180;
+const cv = document.getElementById('screen');
+const g = cv.getContext('2d');
+g.imageSmoothingEnabled = false;
+const embedded = new URLSearchParams(location.search).has('embed');
+if (embedded) document.documentElement.classList.add('embed');
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function fit() {
+  const coarse = getComputedStyle(document.getElementById('pad')).display !== 'none';
+  const pad = coarse ? 190 : embedded ? 0 : 44;
+  const aw = Math.max(160, innerWidth - (embedded ? 0 : 40)), ah = Math.max(90, innerHeight - pad);
+  let s = Math.min(aw / W, ah / H);
+  if (s >= 2 && !embedded) s = Math.floor(s);
+  cv.style.width = Math.round(W * s) + 'px';
+  cv.style.height = Math.round(H * s) + 'px';
+}
+addEventListener('resize', fit); fit();
+
+const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const money = n => '\u2665' + Math.max(0, Math.round(n)).toLocaleString('en-US');
+function seeded(s) { return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+function layer(draw, w = W, h = H) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+  const r = (a, b, d, e, f) => { x.fillStyle = f; x.fillRect(a | 0, b | 0, d | 0, e | 0); };
+  draw(r, x); return c;
+}
+
+/* ---------------------------------------------------------------- pixel font */
+const GLYPHS = {
+  A:'010 101 111 101 101',B:'110 101 110 101 110',C:'011 100 100 100 011',D:'110 101 101 101 110',E:'111 100 110 100 111',
+  F:'111 100 110 100 100',G:'011 100 101 101 011',H:'101 101 111 101 101',I:'111 010 010 010 111',J:'001 001 001 101 010',
+  K:'101 101 110 101 101',L:'100 100 100 100 111',M:'10001 11011 10101 10001 10001',N:'1001 1101 1011 1001 1001',O:'010 101 101 101 010',
+  P:'110 101 110 100 100',Q:'010 101 101 110 011',R:'110 101 110 101 101',S:'011 100 010 001 110',T:'111 010 010 010 010',
+  U:'101 101 101 101 111',V:'101 101 101 101 010',W:'10001 10001 10101 11011 10001',X:'101 101 010 101 101',Y:'101 101 010 010 010',Z:'111 001 010 100 111',
+  0:'111 101 101 101 111',1:'010 110 010 010 111',2:'110 001 010 100 111',3:'110 001 010 001 110',4:'101 101 111 001 001',
+  5:'111 100 110 001 110',6:'011 100 111 101 111',7:'111 001 010 010 010',8:'111 101 111 101 111',9:'111 101 111 001 110',
+  '\u2665':'01010 11111 11111 01110 00100','$':'011 110 010 011 110','.':'0 0 0 0 1',',':'00 00 00 01 10','!':'1 1 1 0 1','?':'110 001 010 000 010',':':'0 1 0 1 0',
+  '-':'000 000 111 000 000','+':'000 010 111 010 000','/':'001 001 010 100 100','%':'101 001 010 100 101',"'":'1 1 0 0 0',
+  '(':'01 10 10 10 01',')':'10 01 01 01 10','*':'000 101 010 101 000','>':'100 110 111 110 100','<':'001 011 111 011 001',
+  '^':'010 111 111 010 010','_':'010 010 111 111 010','#':'111 111 111 111 111','=':'000 111 000 111 000',' ':'000 000 000 000 000'
+};
+for (const k in GLYPHS) GLYPHS[k] = GLYPHS[k].split(' ');
+function tw(s, sc = 1) {
+  let w = 0; for (const ch of String(s).toUpperCase()) w += ((GLYPHS[ch] || GLYPHS[' '])[0].length + 1) * sc;
+  return w - sc;
+}
+function text(s, x, y, c = '#fff', o = {}) {
+  const sc = o.s || 1; s = String(s).toUpperCase();
+  if (o.c) x -= tw(s, sc) / 2; else if (o.r) x -= tw(s, sc);
+  x = Math.round(x); y = Math.round(y);
+  if (o.sh) text(s, x + sc, y + sc, o.sh, { s: sc });
+  g.fillStyle = c;
+  for (const ch of s) {
+    const gl = GLYPHS[ch] || GLYPHS[' '];
+    for (let r = 0; r < 5; r++) for (let i = 0; i < gl[r].length; i++)
+      if (gl[r][i] === '1') g.fillRect(x + i * sc, y + r * sc, sc, sc);
+    x += (gl[0].length + 1) * sc;
+  }
+}
+function wrap(s, maxw) {
+  const out = []; let line = '';
+  for (const w of s.split(' ')) {
+    const t = line ? line + ' ' + w : w;
+    if (tw(t) > maxw) { out.push(line); line = w; } else line = t;
+  }
+  if (line) out.push(line);
+  return out;
+}
+
+/* ---------------------------------------------------------------- input */
+const held = {}, hit = {};
+const KEYMAP = {
+  ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down',ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',
+  Space:'a',Enter:'a',KeyP:'p',Escape:'q',KeyQ:'q',KeyM:'m',KeyR:'r'
+};
+addEventListener('keydown', e => {
+  const k = KEYMAP[e.code]; if (!k) return;
+  e.preventDefault(); audioOn();
+  if (!e.repeat) { held[k] = true; hit[k] = true; }
+});
+addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) held[k] = false; });
+addEventListener('blur', () => { for (const k in held) held[k] = false; if (scene && scene.onBlur) scene.onBlur(); });
+document.querySelectorAll('#pad button').forEach(b => {
+  const k = b.dataset.k;
+  b.addEventListener('pointerdown', e => { e.preventDefault(); audioOn(); held[k] = true; hit[k] = true; b.classList.add('on'); });
+  const up = () => { held[k] = false; b.classList.remove('on'); };
+  b.addEventListener('pointerup', up); b.addEventListener('pointerleave', up); b.addEventListener('pointercancel', up);
+});
+let mouse = null;
+function toScreen(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height }; }
+cv.addEventListener('pointerdown', e => { audioOn(); cv.focus(); mouse = toScreen(e); });
+
+/* ---------------------------------------------------------------- audio */
+let ac = null, muted = false, musicStep = 0, nextNote = 0, master = null;
+function audioOn() {
+  if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
+  const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+  try {
+    ac = new C(); master = ac.createGain(); master.gain.value = muted ? 0 : .5; master.connect(ac.destination);
+    nextNote = ac.currentTime + .05; setInterval(schedule, 30);
+  } catch (e) { ac = null; }
+}
+function tone(f, d, type = 'square', v = .12, when = 0, slide = 0) {
+  if (!ac) return;
+  const t = ac.currentTime + when, o = ac.createOscillator(), a = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, f + slide), t + d);
+  a.gain.setValueAtTime(v, t); a.gain.exponentialRampToValueAtTime(.001, t + d);
+  o.connect(a); a.connect(master); o.start(t); o.stop(t + d + .02);
+}
+let noiseBuf = null;
+function noise(d, v = .1, when = 0, hp = 1000) {
+  if (!ac) return;
+  if (!noiseBuf) { noiseBuf = ac.createBuffer(1, ac.sampleRate * .5, ac.sampleRate); const n = noiseBuf.getChannelData(0); for (let i = 0; i < n.length; i++) n[i] = Math.random() * 2 - 1; }
+  const s = ac.createBufferSource(), a = ac.createGain(), f = ac.createBiquadFilter(), t = ac.currentTime + when;
+  s.buffer = noiseBuf; f.type = 'highpass'; f.frequency.value = hp;
+  a.gain.setValueAtTime(v, t); a.gain.exponentialRampToValueAtTime(.001, t + d);
+  s.connect(f); f.connect(a); a.connect(master); s.start(t); s.stop(t + d + .02);
+}
+const SFX = {
+  move: () => tone(420, .05, 'square', .06),
+  ok: () => { tone(660, .06); tone(990, .08, 'square', .1, .05); },
+  coin: () => { tone(988, .05, 'square', .09); tone(1319, .12, 'square', .09, .05); },
+  bad: () => tone(170, .22, 'sawtooth', .16, 0, -90),
+  whack: () => { noise(.1, .22, 0, 400); tone(140, .1, 'square', .14, 0, -70); },
+  click: () => { noise(.03, .2, 0, 3000); tone(1800, .03, 'square', .06); },
+  siren: () => { for (let i = 0; i < 3; i++) { tone(700, .14, 'square', .07, i * .28, 400); tone(1100, .14, 'square', .07, i * .28 + .14, -400); } },
+  bust: () => { tone(440, .16, 'sawtooth', .16, 0); tone(370, .16, 'sawtooth', .16, .16); tone(311, .16, 'sawtooth', .16, .32); tone(220, .5, 'sawtooth', .18, .48, -100); },
+  win: () => [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, .14, 'square', .12, i * .08)),
+  go: () => tone(880, .22, 'square', .12),
+  tick: () => tone(520, .08, 'square', .1),
+  crash: () => { noise(.3, .3, 0, 200); tone(90, .3, 'sawtooth', .18, 0, -40); },
+  shred: () => { noise(.14, .14, 0, 2000); }
+};
+const sfx = n => { if (ac && !muted) SFX[n](); };
+/* The backing track: an original 90s-style boom-bap loop in D minor, one chord per bar.
+   To use a licensed recording instead, set BACKING_TRACK to its path next to this file. */
+const BACKING_TRACK = null;
+const BPM = 92, SWING = .2;
+const CHORDS = [[50, 53, 57, 60], [46, 50, 53, 57], [43, 46, 50, 53], [45, 49, 52, 55]];
+const KICK = [0, 7, 10], SNARE = [4, 12], BASS = [0, 3, 6, 10, 11], STAB = [2, 9, 14];
+const HOOK = { 32: 69, 35: 72, 38: 74, 42: 72, 44: 69, 48: 65, 51: 67, 54: 69, 58: 64 };
+const midi = n => 440 * Math.pow(2, (n - 69) / 12);
+let trackEl = null;
+function schedule() {
+  if (!ac || muted || paused()) { if (ac) nextNote = Math.max(nextNote, ac.currentTime); if (trackEl) trackEl.pause(); return; }
+  if (BACKING_TRACK) { if (!trackEl) { trackEl = new Audio(BACKING_TRACK); trackEl.loop = true; trackEl.volume = .6; } if (trackEl.paused) trackEl.play().catch(() => {}); return; }
+  const spb = 60 / BPM / 4;
+  while (nextNote < ac.currentTime + .12) {
+    const i = musicStep % 64, st = i % 16, ch = CHORDS[i >> 4], at = Math.max(0, nextNote - ac.currentTime) + (i % 2 ? spb * SWING : 0);
+    if (KICK.includes(st)) tone(115, .2, 'sine', .42, at, -70);
+    if (SNARE.includes(st)) { noise(.15, .17, at, 1400); tone(185, .08, 'triangle', .1, at); }
+    if (st % 2 === 0) noise(.03, st === 14 ? .05 : .03, at, 7000);
+    if (BASS.includes(st)) tone(midi(ch[0] - 12), spb * 1.8, 'triangle', .3, at);
+    if (STAB.includes(st)) ch.slice(1).forEach(n => { tone(midi(n + 12), .2, 'triangle', .045, at); tone(midi(n + 12) * 1.004, .14, 'square', .009, at); });
+    if (HOOK[i]) tone(midi(HOOK[i]), spb * 2.4, 'triangle', .06, at);
+    musicStep++; nextNote += spb;
+  }
+}
+const paused = () => scene && scene.isPaused && scene.isPaused();
+
+/* ---------------------------------------------------------------- save */
+/* Hearts are the site's one currency. This reads and writes the same localStorage
+   key as lib/wallet.ts, so the site's header updates through its storage listener. */
+const HEARTS_KEY = 'arcade-hearts';
+let hearts = null;
+function getHearts() {
+  if (hearts === null) {
+    let saved = 0;
+    try { saved = Number(localStorage.getItem(HEARTS_KEY)); } catch (e) {}
+    hearts = Number.isSafeInteger(saved) && saved >= 0 ? saved : 0;
+  }
+  return hearts;
+}
+function setHearts(n) {
+  hearts = Math.max(0, Math.round(n));
+  try { localStorage.setItem(HEARTS_KEY, String(hearts)); } catch (e) {}
+}
+function addHearts(n) { if (n > 0) setHearts(getHearts() + Math.round(n)); }
+function spendHearts(n) { if (n > getHearts()) return false; if (n > 0) setHearts(getHearts() - n); return true; }
+addEventListener('storage', e => { if (e.key === HEARTS_KEY || e.key === null) hearts = null; });
+
+const SAVE_KEY = 'spooky-frutti-v2';
+let save = { rep: {}, best: {}, busts: 0, won: false };
+try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s) save = Object.assign(save, s); } catch (e) {}
+function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
+
+/* ---------------------------------------------------------------- effects */
+let floats = [], parts = [], shake = 0, flash = 0, flashCol = '#fff';
+function pop(txt, x, y, c = '#ffe680') { floats.push({ txt, x, y, c, t: 1 }); }
+function burst(x, y, n, cols, sp = 60) {
+  for (let i = 0; i < n; i++) parts.push({ x, y, vx: rand(-sp, sp), vy: rand(-sp * 1.3, sp * .2), c: pick(cols), t: rand(.3, .8) });
+}
+const coins = (x, y, n = 8) => burst(x, y, n, ['#ffe680', '#ffb52e', '#7fe07a']);
+function bump(a = 3) { if (!reduced) shake = Math.max(shake, a); }
+function flashOn(c, a = .5) { if (!reduced) { flash = a; flashCol = c; } }
+function fxUpdate(dt) {
+  floats = floats.filter(f => (f.t -= dt * .9) > 0); floats.forEach(f => f.y -= dt * 24);
+  parts = parts.filter(p => (p.t -= dt) > 0); parts.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 180 * dt; });
+  shake = Math.max(0, shake - dt * 12); flash = Math.max(0, flash - dt * 2);
+}
+function fxDraw() {
+  parts.forEach(p => R(p.x, p.y, 2, 2, p.c));
+  floats.forEach(f => { const hw = tw(f.txt) / 2 + 2; text(f.txt, clamp(f.x, hw, W - hw), f.y, f.c, { c: 1, sh: '#000' }); });
+}
+
+/* ---------------------------------------------------------------- sprites */
+function sprite(rows, pal) {
+  return layer(r => rows.forEach((row, y) => { for (let x = 0; x < row.length; x++) { const c = pal[row[x]]; if (c) r(x, y, 1, 1, c); } }), rows[0].length, rows.length);
+}
+const OUT = '#1a0810';
+const HEAD_PAL = { K: OUT, r: '#a81c38', d: '#6a0a24', l: '#cf3650', h: '#f4a0a4', S: '#ffffff', E: '#120408', n: '#4a5a1a', m: '#360414', B: '#360414', g: '#86c83e', G: '#408c28' };
+const HEAD = sprite([
+  '......gGg..n......',
+  '...KgGGGgKnKKK....',
+  '..KlgggrrKKrrrrK..',
+  '.KlhlrrrrrrrrrrdK.',
+  '.KhlrrrrrrrrrrrdK.',
+  'KllrrrrrrrrrrrrrdK',
+  'KlBBBBrrrrrrBBBBdK',
+  'KrrSSEErrrrrSSErdK',
+  'KrrddrrrrrrrddrrdK',
+  'KrrrrrrrrrrrrrrrdK',
+  '.KrrrrmmmmmmrrddK.',
+  '.KdrrmrrrrrrmrddK.',
+  '..KddrrrrrrrdddK..',
+  '...KKdddddddKKK...',
+  '.....KKKKKKK......'
+], HEAD_PAL);
+const MINI = sprite([
+  '....g.n....',
+  '..KKKnKKK..',
+  '.KllrrrrrK.',
+  'KlhrrrrrrdK',
+  'KBBBrrrBBdK',
+  'KrSErrrSEdK',
+  'KrrrrrrrrdK',
+  'KrrmmmmmrdK',
+  '.KmrrrrrmK.',
+  '..KKKKKKK..'
+], HEAD_PAL);
+
+function frutti(x, y, o = {}) {
+  x = Math.round(x); y = Math.round(y);
+  const st = o.step ? (Math.floor(o.step * 8) % 2) : -1;
+  const lL = st === 0 ? 1 : 0, lR = st === 1 ? 1 : 0, fit = o.outfit;
+  const LOOK = {
+    deal: ['#2f3346', '#23242f'], fraud: ['#22304f', '#1a2640'], heist: ['#e8e8f0', '#15151f'],
+    pimp: ['#6d2bb0', '#4c1a85'], gamble: ['#16161f', '#16161f']
+  }[fit] || ['#fff8e8', '#e8cf94'];
+  const [top, legs] = LOOK, skin = '#a81c38';
+  // canvas shoes
+  R(x - 7, y - 3 - lL, 6, 3, OUT); R(x - 6, y - 3 - lL, 4, 2, '#fff8e8');
+  R(x + 1, y - 3 - lR, 6, 3, OUT); R(x + 2, y - 3 - lR, 4, 2, '#fff8e8');
+  // trousers
+  R(x - 5, y - 10, 4, 7 - lL, legs); R(x + 1, y - 10, 4, 7 - lR, legs); R(x - 5, y - 11, 10, 2, legs); R(x - 1, y - 8, 1, 5, '#00000040');
+  // shirt, rolled sleeves, bare forearms
+  R(x - 6, y - 17, 12, 7, top);
+  R(x - 8, y - 17, 2, 3, top); R(x + 6, y - 17, 2, 3, top);
+  R(x - 8, y - 14, 2, 4, skin); R(x + 6, y - 14, 2, 4, skin); R(x - 8, y - 10, 2, 2, '#6a0a24'); R(x + 6, y - 10, 2, 2, '#6a0a24');
+  if (!fit) { R(x, y - 15, 1, 5, '#e8dec6'); R(x - 2, y - 16, 4, 1, skin); }
+  if (fit === 'dogs') { R(x, y - 15, 1, 1, '#e8dec6'); R(x - 5, y - 15, 10, 8, '#ffffff'); R(x - 5, y - 15, 10, 1, '#d8304a'); }
+  if (fit === 'deal') { R(x - 2, y - 13, 4, 2, '#454b66'); }
+  if (fit === 'pimp') { R(x - 9, y - 17, 18, 13, '#6d2bb0'); R(x - 10, y - 17, 3, 13, '#ff8fc0'); R(x + 7, y - 17, 3, 13, '#ff8fc0'); R(x - 10, y - 5, 20, 2, '#ff8fc0'); R(x - 3, y - 16, 6, 1, '#ffe680'); R(x - 1, y - 15, 2, 2, '#ffe680'); }
+  if (fit === 'heist') { for (let i = 0; i < 3; i++) R(x - 6, y - 16 + i * 2, 12, 1, '#15151f'); }
+  if (fit === 'fraud') { R(x - 2, y - 17, 4, 6, '#ffffff'); R(x - 1, y - 17, 2, 6, '#d8304a'); }
+  if (fit === 'gamble') { R(x - 2, y - 17, 4, 7, '#ffffff'); R(x - 2, y - 17, 4, 2, '#ffe680'); }
+  // head
+  g.drawImage(HEAD, x - 9, y - 31);
+  const eye = y - 24;
+  if (fit === 'dogs') { R(x - 7, y - 34, 14, 5, '#ffffff'); R(x - 7, y - 31, 14, 1, '#d8304a'); R(x - 5, y - 36, 10, 2, '#ffffff'); }
+  if (fit === 'deal') { R(x - 8, y - 33, 16, 5, '#2f3346'); R(x - 8, y - 30, 16, 1, '#454b66'); R(x - 8, eye, 7, 2, '#0a0a10'); R(x + 1, eye, 7, 2, '#0a0a10'); R(x - 1, eye, 2, 1, '#0a0a10'); }
+  if (fit === 'pimp') {
+    R(x - 14, y - 32, 28, 2, '#9a4ce8'); R(x - 7, y - 38, 14, 6, '#8a3fd8'); R(x - 7, y - 34, 14, 2, '#ffe680');
+    R(x + 6, y - 43, 2, 7, '#ff8fc0'); R(x + 8, y - 44, 1, 4, '#ff8fc0');
+    R(x - 8, eye, 7, 2, '#0a0a10'); R(x + 1, eye, 7, 2, '#0a0a10'); R(x - 1, eye, 2, 1, '#ffe680');
+  }
+  if (fit === 'heist') { R(x - 8, y - 33, 16, 5, '#15151f'); R(x - 8, y - 25, 16, 3, '#15151f'); R(x - 6, eye, 3, 1, '#fff'); R(x + 3, eye, 3, 1, '#fff'); }
+  if (fit === 'fraud') { R(x - 8, eye - 1, 7, 1, '#ffe680'); R(x + 1, eye - 1, 7, 1, '#ffe680'); R(x - 8, eye + 2, 7, 1, '#ffe680'); R(x + 1, eye + 2, 7, 1, '#ffe680'); R(x - 1, eye, 2, 1, '#ffe680'); }
+  if (fit === 'gamble') { R(x - 9, y - 29, 18, 2, '#2f9a5a'); R(x - 9, y - 27, 18, 1, '#16643a'); }
+}
+function fruttiBig(x, y, sc, o) { g.save(); g.translate(x, y); g.scale(sc, sc); frutti(0, 0, o); g.restore(); }
+
+/* fruit NPCs */
+const SHAPES = {
+  round: ['...KKKKKK...','.KKbbbbbbKK.','.KbhbbbbbdK.','KbhbbbbbbbdK','KbbEbbbbEbdK','KbbEbbbbEbdK','KbbbbbbbbbdK','KbbbmmmbbbdK','.KbbbbbbbdK.','.KKddddddKK.','...KKKKKK...'],
+  pear:  ['....KKKK....','...KbbbbK...','...KhbbdK...','...KbbbdK...','..KbbbbbdK..','.KbEbbbEbdK.','.KbEbbbEbdK.','KbbbbbbbbbdK','KbbbmmmbbbdK','.KKbdddddKK.','...KKKKKK...'],
+  long:  ['.....KK.....','....KbbK....','....KbbbK...','...KhbbbK...','...KEbEbdK..','...KEbEbdK..','...KbbbbdK..','...KbmmbdK..','...KbbbbdK..','....KbbdK...','.....KKK....']
+};
+const FRUITS = {
+  orange: ['round', '#f28a1e', '#b85a0c', '#ffc27a', '#2e8a3e'],
+  plum:   ['round', '#8d3fb0', '#5d2080', '#c98ae0', '#2e8a3e'],
+  peach:  ['round', '#ff9f80', '#d86a50', '#ffd8c8', '#2e8a3e'],
+  lime:   ['round', '#7fc738', '#4e8a1e', '#c8f08a', '#7a4a1e'],
+  lemon:  ['round', '#f6d92e', '#c0a010', '#fff5a0', '#2e8a3e'],
+  cop:    ['round', '#3f5fd8', '#27389a', '#8aa6f8', '#22306a'],
+  pear:   ['pear',  '#a8c838', '#6f8a1e', '#dcf08a', '#7a4a1e'],
+  rival:  ['pear',  '#3fbf6a', '#1e7f42', '#8aeeae', '#7a4a1e'],
+  banana: ['long',  '#ffd93b', '#c8a018', '#fff3a8', '#7a4a1e'],
+  grape:  ['round', '#5e3fc0', '#3c2488', '#a48cf0', '#2e8a3e']
+};
+const npcCache = {};
+function npcSprite(kind) {
+  if (npcCache[kind]) return npcCache[kind];
+  const f = FRUITS[kind];
+  return npcCache[kind] = sprite(SHAPES[f[0]], { K: OUT, b: f[1], d: f[2], h: f[3], E: '#120810', m: '#3a0a18' });
+}
+function npc(kind, x, y, t = 0, o = {}) {
+  x = Math.round(x); y = Math.round(y);
+  const s = t ? Math.floor(t * 8) % 2 : 0;
+  R(x - 3, y - 4, 1, 3 + s, '#f2d4b4'); R(x + 2, y - 4, 1, 4 - s, '#f2d4b4');
+  R(x - 5, y - 1 - (s ? 0 : 1), 4, 2, '#2a1a22'); R(x + 1, y - 1 - (s ? 1 : 0), 4, 2, '#2a1a22');
+  g.drawImage(npcSprite(kind), x - 6, y - 15);
+  R(x, y - 16, 1, 2, FRUITS[kind][4]);
+  if (kind === 'cop' || o.cap) { R(x - 5, y - 18, 10, 3, '#1b2348'); R(x - 6, y - 15, 12, 1, '#10152e'); R(x - 1, y - 17, 2, 1, '#ffe680'); }
+  if (o.shades) { R(x - 5, y - 11, 4, 2, '#06060a'); R(x + 1, y - 11, 4, 2, '#06060a'); R(x - 1, y - 11, 2, 1, '#06060a'); }
+  if (o.clip) { R(x + 5, y - 9, 6, 8, '#b98a50'); R(x + 6, y - 8, 4, 6, '#fff'); R(x + 7, y - 7, 2, 1, '#555'); }
+  if (o.hat) { R(x - 9, y - 16, 18, 2, o.hat); R(x - 5, y - 21, 10, 5, o.hat); R(x - 5, y - 18, 10, 1, '#ffe680'); }
+  if (o.mad) { R(x - 5, y - 13, 4, 1, '#120810'); R(x + 1, y - 13, 4, 1, '#120810'); }
+}
+
+/* the full-body portrait: pixelated from the character art */
+const PORTRAIT = {"w": 39, "h": 132, "colors": ["#f4a0a4", "#cf3650", "#a81c38", "#820f2a", "#5a0820", "#360414", "#120408", "#ffffff", "#86c83e", "#408c28", "#1f5418", "#fff8e8", "#e8dec6", "#b4a890", "#ecd498", "#c8a868", "#927646"], "rows": ["..................gag..................", ".................gjbg..................", ".......gggggggggggidg..................", "......gjjjjjjjjjkkdeg..................", "....ggiiiijkjjiaeeeg...................", "...gkiiijjjjjjjeeeeggggggggggg.........", "...giiiijjjjjjeedeecccccbaaaabgg.......", "..giiiiijjjjbbcbbbeabbbaaaaaaabcg......", ".gjiiiijjjjjedbbabbbbaaaaaaaaabccg.....", ".giiiijkjidgecbbbbbbaaabbbccbccddcg....", "gjiiijjjiefcbbbbbbbbbbbccdddddeeeedg...", "giijjjijgebbbbbbbbbbbcccdddeeeeffeedg..", "gijjjjfgebbbaaaaabbbbcccddeeeefffffeg..", "kijbeggdbbaaaaaaaaabbcccddeeeffffffedg.", "jjceggebbbaaaaaaaaabbccdddeefffffgffeg.", "jkdegfcbbbaaaaaaaabbbccdddeeffffgggfedg", "ggcefdcbbaaaaabbbbbbbbccddeefffggggfddg", ".gbddcbbbaaabbcbbbbcbbccddeefffggggeccg", ".gbcccbbbabccddccdddddeefffffffggggebbg", "gbabcfbbbcddefedefffffffffffffgggggeaac", "gaabbfffddeefgefefffffffffffffgggggeaab", "gaabbeffffffffffdeggffeeeffggggggggeaab", "gaabdfffffffffffefgfdcdeffgggggggggeaab", "gaabcdcbbbcdeeddefgfeeeeeeeegfgggggeaab", "gaabcccccdggffdcdfggfhhghghhffgggggfaab", "gaabcdaeeeeeeecbcefffhhggghhffgggggeaab", "gaabccfhhghghhfbbdedceeeeeeeffgggggeaab", ".gaaccfhhggghhfbbddddeffggfffggggggeaab", ".gaaccceeeeeeebbcdddddeeeffffggggggeaag", ".gaaccccddbbbbcccddeeeeeefffgggggggdaag", ".gaabccccbbbccccdddeeeffffffgggggggdaag", "..gaacccccccccccdddeeffffffggggggggbabg", "..gaacdcccccccccdddefffffffggggggggbag.", "...gabddddddddcccddeffffffggggggggfbbg.", "...gbaddddddddddeefggggffgggggggggecg..", "....gbcdddddeefeddeffgggfggggggggfedg..", "....gccddddeeffffffffffggggggggggfeg...", ".....gddeeeeeffffffggggfggggggggfedg...", "......gddeeeeeffffffgfggggggggggfeg....", ".......gdeeefffffffffggggggggggffdg....", ".......gddeefffffffffggggggggggfeg.....", "........gdeefffffffffffggggggffeg......", ".........gdeeeffffffffffffffgffg.......", "..........gddeeeeeefffffffggfgg........", "...........ggdccdeffggggggfbg..........", ".............gcbdgggggggggeccgg........", ".............gnmngggggggfdnggnngg......", "...........ggmlmnggffggedenggnnnng.....", "..........gmlllnnaffffedfenngnnnnng....", ".........glllllmlaaeedcebanngggggng....", ".........glllllllaaddbcaaanmmg..gng....", "........gmlllllllaabbaaaaammmg...g.....", "........gmlllllllaaaaaaaaammg..........", "........gmllllllllllmlllllmmg.g........", "........gmlllllllllmllllllmmggng.......", "........glmmlllllllmlllllmmnnnng.......", "........gmlmllllllllllllmmmnnnnng......", "........gmlmmlllmmmlllmmmmnnnnnng......", "........gllmmllmmmmlmmmmmmnnnnnng......", "........gllmmmmmmmmlmmmmnmnnnnnng......", ".......gmlmmmmmmmmlmmmmmnmnnnnnng......", ".......gmlmmnmmmlllmmmmmnmnnnnnng......", ".......gmlmmnmmllllllmmmnnnnnnnng......", ".......gllmmnmmllmmlmmlmnnnnnnng.......", "......gmlmmmmmlllmmlmmmmnnnnnng........", "......gllmmmnmllmmmlmmmmnnnnnng........", "......gllllmnmlmmmllmmmnnnnnnng....gg..", "......gnnnmmmmlllllllmmmnnnnnng..ggnng.", ".....gbbbefenmmmlllllmmmnnnnnng.gedbdfg", ".....gbccdefnllmmmllmnnnnnnnnng.gddcdfg", ".....gbccefenmllllmmmmmmmmmnnng.gddcdfg", ".....gbcdefdgnnmmmmmmmmmnnnnnng.gcdddfg", ".....gccdffggnnnnnnmnnnnnnnnnng..gdddfg", ".....gccefdggpopppppqqqqqqqqqqg..gdddfg", "....gbbcffggqooqppppppqqqqqqqqg..gdddfg", "....gbbcfdggooopoppppqqqqqqqppqg.gcddfg", "....gbbdeg.gooooooppqppppppppppg..gcdgg", "....gbbccg.gooooppppqppppppppqqg.gccdgg", "....gbccbg.gooooopppqpppppppqqqg.gccdgg", "....gbcccg.goooooooppppppppqqqqggbcdeg.", "....gbbbdg.gooooppppppppppqqqqqqgcbdfg.", "...gbccceg.gooppppppppppppppqqqqqcbefg.", "...gbdfeeg.gooppppqqqppppppqqqqqqeedfg.", "...gcefddg.gooooppqqqqqppppqqqqqqfddgg.", "...gdefdeg.gooppqqqqqqpppppqqqqqqeceg..", "...gdefeedggopppqqqqqqqqpppqqqqqqcdfg..", "....geeeedgaoppppqqqqqpppppqqqqqqbeg...", "....gefeecgaoppqqqqqqqpppppqqqqqqdfg...", ".....gdfedggoppqqqqqqqpppppqqqqqqfg....", "......ggeg.goppqqqqqqqqppppqqqqqqfg....", "........g..goppqqqqqqggppppqqqqqgg.....", "...........goppqqqqqqggppppqqqqqg......", "...........gpppqqqqqqggppppqqqqqg......", "...........gpppqqqqqqggppppqqqqqg......", "...........gpppqqqqqqggqpppqqqqqg......", "...........gpppqqqqqqg.gpppqqqqqg......", "...........gpppqqqqqg..gpppqqqqqg......", "...........gpppqqqqqg..gpppqqqqqg......", "...........gpppqqqqqg..gpppqqqqqg......", "...........gppqqqqqqg..gppppqqqqg......", "...........gppqqqqqqg..gppppqqqqg......", "...........gppqqqqqqg...gpppqqqqg......", "............gpqqqqqqg...gpppqqqqg......", "............gpqqqqqqg...gpppqqqqg......", "............gpqqqqqqg...gpppqqqqg......", "............gpqqqqqqg...gppqqqqqpg.....", "............gpqqqqqqg....gpqqqqqqg.....", "............gpqqqqqqg....gpqpqqqqg.....", "............gpqqqqqqg....gpqpqqqqg.....", "............gpqqqqqqg....gpppqqqqg.....", "............gpqqqqqqg....goppqqqqg.....", "............goqqqqqqg....goppqqqqpg....", "............goqqqqqqg.....gpppqqqpg....", "............goqqqqqqg.....gpppqqqpg....", "............gpqqqqqqg....gopppqqqpg....", "............gpqqqqqqg....gopppqqqqg....", "............gpqqqqqqg....gopppqqqqg....", "............gpppppqqg....gopppqqqqg....", "............gpqppqqpg....goppppqqqg....", "............gpqqqqqpg....gooooqqqqg....", "...........goopppqqpg.....gppqqqqqg....", "...........gopppqqqpg.....gppppqqqg....", "...........goppqqqqpg.....gppppqqqg....", "..........ggmnnngggng.....gnnnnnnng....", ".........gmmmmnnnnnng......gnnnnnng....", ".......ggmmmmnnnnnnng......gnnmnnng....", "......gmmlmmmnnnnnnng......gmmmnnng....", ".....gmllmmmnnnngggg........gmmmnng....", "....gmmmnnnnnnngggg........gmmmmmmmg...", "....gmmmnnnnnnggg..........gmmmmmmmg...", ".....ggggggggg.............gnmnnnnnng..", "............................gmmnnnng..."]};
+const portraitImg = layer(r => {
+  PORTRAIT.rows.forEach((row, y) => { for (let x = 0; x < row.length; x++) if (row[x] !== '.') r(x, y, 1, 1, PORTRAIT.colors[row.charCodeAt(x) - 97]); });
+}, PORTRAIT.w, PORTRAIT.h);
+function portrait(x, y) { g.drawImage(portraitImg, x, y); }
+
+/* ---------------------------------------------------------------- hustles */
+const HEART_RATE = .1;  // tunes every payout against what other chapters award
+const HUSTLES = [
+  { id: 'dogs', name: 'HOT DOGS', risk: 1, pay: 1, time: 45, finePct: 0, fineMin: 3, keep: true, buyIn: 0,
+    blurb: 'Honest money. Match each order before the line walks off.',
+    how: ['ARROW KEYS ADD TOPPINGS', 'MATCH THE ORDER LEFT TO RIGHT', '3 WALK-OFFS AND YOUR PERMIT IS PULLED'],
+    bust: 'Keep your take, lose \u26653.' },
+  { id: 'deal', name: 'DRUG DEALER', risk: 2, pay: 2, time: 50, finePct: .10, fineMin: 20, buyIn: 10,
+    blurb: 'Grab the goods, hit buyers across town, stay out of sight.',
+    how: ['ARROWS MOVE. DUMPSTERS RELOAD YOUR STASH', 'WALK INTO BUYERS TO SELL', 'SHADES = UNDERCOVER. ANY COP TOUCH = BUSTED'],
+    bust: 'Lose stake, take + 10% of your hearts.' },
+  { id: 'pimp', name: 'PIMP', risk: 3, pay: 3, time: 50, finePct: .20, fineMin: 80, buyIn: 50,
+    blurb: 'Fur coat, big hat. Run the boulevard and defend your corners.',
+    how: ['SPACE: COLLECT FROM CREW, SMACK RIVALS', 'UP AT A DOORWAY WHEN THE COPS ROLL BY', '3 LOST CREW ENDS THE NIGHT. FULL HEAT = BUSTED'],
+    bust: 'Lose stake, take + 20% of your hearts.' },
+  { id: 'heist', name: 'HEIST', risk: 4, pay: 4, time: null, finePct: .35, fineMin: 400, buyIn: 200,
+    blurb: 'Every safe doubles the score and the sirens. Then you still have to drive.',
+    how: ['SPACE IN THE GREEN CRACKS A TUMBLER', 'AFTER EACH SAFE: GO DEEPER OR RUN', 'LEFT / RIGHT TO DODGE. 3 CRASHES = BUSTED'],
+    bust: 'Lose stake, take + 35% of your hearts.' },
+  { id: 'fraud', name: 'BANK FRAUD', risk: 5, pay: 5, time: null, finePct: .60, fineMin: 1500, buyIn: 1000,
+    blurb: 'Checks grow fast and so does the trace. Know when to vanish.',
+    how: ['RIGHT: CASH IT IF IT MATCHES THE TARGET CARD', 'LEFT: SHRED FAKES (NAME, COLOR, SIGNATURE)', 'DOWN: CASH OUT. FULL TRACE = FEDS'],
+    bust: 'Lose stake, take + 60% of your hearts.' },
+  { id: 'gamble', name: 'GAMBLING', risk: 6, pay: 6, time: null, finePct: 0, fineMin: 0, buyIn: 1, ownStake: true,
+    blurb: 'One wheel. Bet a slice or go all in, then let it ride as long as you dare.',
+    how: ['LEFT / RIGHT: SET YOUR BET. UP / DOWN: PICK A COLOR', 'RED OR BLACK PAYS X2. GREEN PAYS X14', 'ALL IN ON GREEN PAYS X30. AFTER A WIN: RIDE OR CASH OUT'],
+    bust: 'Lose your whole bet. All in means all of it.' }
+];
+const GOAL = 100000;
+const RANKS = [[0, 'WINDFALL'], [100, 'SMALL FRY'], [1000, 'BAD APPLE'], [10000, 'BIG APPLE'], [50000, 'CORE BOSS'], [GOAL, 'RETIRED LEGEND']];
+const rankOf = b => RANKS.filter(r => b >= r[0]).pop()[1];
+const canAfford = h => getHearts() >= h.buyIn;
+
+/* --- hot dogs ------------------------------------------------------ */
+const TOPS = {
+  left:  { name: 'KETCHUP', c: '#e0343c', d: '#8a1820', g: '<' },
+  up:    { name: 'MUSTARD', c: '#f6c81e', d: '#a07c0a', g: '^' },
+  right: { name: 'RELISH',  c: '#55b83a', d: '#2c6a1a', g: '>' },
+  down:  { name: 'ONION',   c: '#f4ecd8', d: '#a89c80', g: '_' }
+};
+const TOPK = Object.keys(TOPS);
+function topTile(k, x, y, done) {
+  const t = TOPS[k];
+  R(x, y, 15, 15, OUT); R(x + 1, y + 1, 13, 13, done ? '#3a3040' : t.c); R(x + 1, y + 12, 13, 2, done ? '#2a2030' : t.d);
+  text(t.g, x + 6, y + 5, done ? '#6a6070' : (k === 'down' ? '#3a3020' : '#fff'));
+}
+const DOG_BG = layer(r => {
+  const rn = seeded(11);
+  for (let y = 0; y < 120; y++) r(0, y, W, 1, y < 40 ? '#7fd0ef' : y < 80 ? '#a2e0ee' : '#ffe9b0');
+  r(36, 18, 22, 22, '#fff3a0'); r(32, 22, 30, 14, '#fff3a0'); r(40, 14, 14, 30, '#fff3a0');
+  for (let i = 0; i < 4; i++) { const x = 90 + i * 58, y = 14 + i % 2 * 12; r(x, y, 30, 5, '#fff'); r(x + 5, y - 4, 16, 5, '#fff'); }
+  let x = 0;
+  while (x < W) {
+    const w = 34 + rn() * 34 | 0, h = 40 + rn() * 62 | 0, c = pick2(rn, ['#e08a62', '#c96a58', '#d8a860', '#8fa8b8', '#b08ac0']);
+    r(x, 118 - h, w, h, c); r(x, 118 - h, w, 3, '#00000033');
+    for (let wy = 118 - h + 8; wy < 108; wy += 12) for (let wx = x + 5; wx < x + w - 8; wx += 11) r(wx, wy, 7, 8, rn() < .3 ? '#fff3a0' : '#4a5e70');
+    x += w;
+  }
+  r(0, 118, W, 30, '#c9c0b0'); for (let i = 0; i < W; i += 28) r(i, 118, 1, 30, '#a89f90');
+  r(0, 146, W, 2, '#847c70'); r(0, 148, W, 32, '#4a4650');
+  for (let i = 8; i < W; i += 36) r(i, 162, 18, 2, '#e8d868');
+});
+function pick2(rn, a) { return a[Math.floor(rn() * a.length)]; }
+function drawCart(t) {
+  // awning
+  R(189, 68, 2, 40, '#555'); R(273, 68, 2, 40, '#555');
+  R(180, 60, 104, 12, OUT);
+  for (let i = 0; i < 13; i++) { R(181 + i * 8, 61, 8, 10, i % 2 ? '#fff' : '#e0343c'); R(181 + i * 8, 71, 8, 2, i % 2 ? '#fff' : '#e0343c'); }
+  // cart body
+  R(186, 110, 92, 30, OUT); R(187, 111, 90, 28, '#e0343c'); R(187, 111, 90, 4, '#ffe680');
+  text('DOGS', 217, 122, '#fff', { s: 2, c: 0, sh: '#7a1018' });
+  R(182, 106, 100, 5, OUT); R(183, 107, 98, 3, '#d8d8e0');
+  R(194, 140, 12, 8, OUT); R(196, 142, 8, 4, '#555'); R(258, 140, 12, 8, OUT); R(260, 142, 8, 4, '#555');
+}
+function drawDog(x, y, tops) {
+  R(x - 2, y, 28, 8, OUT); R(x - 1, y + 1, 26, 6, '#e8b860'); R(x + 1, y - 2, 22, 6, OUT); R(x + 2, y - 1, 20, 4, '#b5482c');
+  tops.forEach((k, i) => { const c = TOPS[k].c; for (let j = 0; j < 5; j++) R(x + 3 + i * 5 + j, y - 1 + (j % 2), 1, 2, c); });
+}
+function gameDogs(run) {
+  const SLOT = i => 150 - i * 26;
+  let q = [], spawn = .2, strikes = 0, streak = 0, idx = 0, wiggle = 0, sinceInsp = 0, elapsed = 0, cooked = [];
+  const mk = () => {
+    sinceInsp++;
+    const insp = sinceInsp >= 8 && Math.random() < .5;
+    if (insp) sinceInsp = 0;
+    const max = elapsed < 12 ? 2 : elapsed < 28 ? 3 : 4;
+    const len = insp ? 4 : 1 + Math.floor(Math.random() * max);
+    const order = Array.from({ length: len }, () => pick(TOPK));
+    const pat = (5.5 + len * 1.3) / run.spd;
+    return { kind: insp ? 'lemon' : pick(['orange', 'plum', 'peach', 'lime', 'pear', 'banana', 'grape']), x: -14, order, pat, max: pat, insp, wt: 0, leaving: 0 };
+  };
+  function serve(c) {
+    const frac = c.pat / c.max, mult = 1 + Math.min(streak, 10) * .1;
+    const base = c.insp ? 80 : 6 + c.order.length * 4;
+    const amt = Math.max(1, Math.round((base + frac * 8) * mult * run.pay));
+    run.take += amt; streak++;
+    pop('+' + money(amt), 150, 72); coins(170, 104, 6); sfx('coin');
+    if (streak > 0 && streak % 5 === 0) pop('STREAK X' + (1 + Math.min(streak, 10) * .1).toFixed(1), 232, 56, '#fff');
+    c.leaving = 1; c.happy = 1; idx = 0;
+  }
+  function strike(n, msg) {
+    strikes += n; streak = 0; run.heat = clamp(strikes / 3, 0, 1); pop(msg, 110, 60, '#ff6a6a'); sfx('bad'); bump(3);
+    if (strikes >= 3) run.bust('PERMIT PULLED!');
+  }
+  return {
+    update(dt) {
+      elapsed += dt; spawn -= dt; wiggle = Math.max(0, wiggle - dt * 6);
+      if (spawn <= 0 && q.filter(c => !c.leaving).length < 5) { q.push(mk()); spawn = rand(1.5, 2.4) / run.spd; }
+      const line = q.filter(c => !c.leaving);
+      line.forEach((c, i) => {
+        const tx = SLOT(i);
+        if (c.x < tx) { c.x = Math.min(tx, c.x + 110 * dt); c.wt += dt; } else if (c.x > tx) c.x = Math.max(tx, c.x - 110 * dt);
+        c.pat -= dt * (i === 0 ? 1 : .28);
+        if (c.pat <= 0) { c.leaving = 1; if (i === 0) idx = 0; strike(c.insp ? 2 : 1, c.insp ? 'FAILED INSPECTION' : 'WALK-OFF!'); }
+      });
+      q.forEach(c => { if (c.leaving) { c.x += (c.happy ? 110 : -130) * dt; c.wt += dt; } });
+      q = q.filter(c => c.x > -24 && c.x < 340);
+      const front = q.filter(c => !c.leaving)[0];
+      if (front && front.x <= SLOT(0) + 8) {
+        for (const k of TOPK) if (hit[k]) {
+          if (front.order[idx] === k) {
+            idx++; sfx('move'); wiggle = 1;
+            if (idx === front.order.length) serve(front);
+          } else {
+            sfx('bad'); bump(2); idx = 0; streak = 0; front.pat -= 1.5; pop('WRONG DOG', 232, 80, '#ff6a6a');
+          }
+          break;
+        }
+      }
+    },
+    draw() {
+      g.drawImage(DOG_BG, 0, 0);
+      frutti(232, 110 + (wiggle > .5 ? 1 : 0), { outfit: 'dogs' });
+      drawCart();
+      const line = q.filter(c => !c.leaving);
+      const front = line[0];
+      drawDog(196, 100, front ? front.order.slice(0, idx) : []);
+      q.slice().sort((a, b) => a.x - b.x).forEach(c => npc(c.kind, c.x, 146, c.wt, { clip: c.insp, mad: c.pat < 2 && !c.happy }));
+      // patience pips for those waiting
+      line.slice(1).forEach(c => { if (c.x > 0) { R(c.x - 7, 123, 14, 2, '#0008'); R(c.x - 7, 123, 14 * c.pat / c.max, 2, c.pat / c.max < .35 ? '#ff4040' : '#7fe07a'); } });
+      if (front && front.x <= SLOT(0) + 8) {
+        const n = front.order.length, bw = n * 17 + 8, bx = clamp(150 - bw / 2, 4, 170);
+        R(bx - 1, 77, bw + 2, 34, OUT); R(bx, 78, bw, 32, '#fffdf2');
+        R(146, 111, 6, 3, OUT); R(147, 111, 4, 2, '#fffdf2');
+        if (front.insp) text('INSPECTOR', bx + bw / 2, 80, '#b07000', { c: 1 });
+        front.order.forEach((k, i) => topTile(k, bx + 5 + i * 17, 87, i < idx));
+        R(bx + 2, 105, bw - 4, 3, '#ccc'); R(bx + 2, 105, (bw - 4) * clamp(front.pat / front.max, 0, 1), 3, front.pat / front.max < .35 ? '#e0343c' : '#4cb050');
+      }
+      // key strip
+      R(0, 165, W, 15, '#000a');
+      TOPK.forEach((k, i) => { const x = 8 + i * 78; topTile(k, x, 165 - 0, false); text(TOPS[k].name, x + 18, 170, held[k] ? '#ffe680' : '#fff'); });
+      if (streak > 1) text('X' + (1 + Math.min(streak, 10) * .1).toFixed(1), 314, 170, '#ffe680', { r: 1 });
+    }
+  };
+}
+
+/* --- dealer -------------------------------------------------------- */
+const MAP = [
+  '....................',
+  '.###.####..####.###.',
+  '.###.####..####.###.',
+  '....................',
+  '.##.###.####.###.##.',
+  '.##.###.####.###.##.',
+  '....................',
+  '.###.####..####.###.',
+  '.###.####..####.###.',
+  '....................'
+];
+const TS = 16, MY = 14;
+const open = (x, y) => y >= 0 && y < 10 && x >= 0 && x < 20 && MAP[y][x] === '.';
+const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+const DEAL_BG = layer(r => {
+  const rn = seeded(77);
+  r(0, 0, W, H, '#20233a');
+  for (let y = 0; y < 10; y++) for (let x = 0; x < 20; x++) {
+    const px = x * TS, py = MY + y * TS;
+    if (MAP[y][x] === '.') {
+      r(px, py, TS, TS, '#2b2f49');
+      if ((x + y) % 2 === 0) r(px + 7, py + 7, 2, 2, '#3a3f5e');
+      if (rn() < .06) r(px + 3, py + 4, 3, 2, '#23263c');
+    } else {
+      const c = ['#46395e', '#3f4a6a', '#5a3c4e'][(x >> 2) % 3];
+      r(px, py, TS, TS, c);
+      if (!open(x, y - 1) ) r(px, py, TS, 0, c); else r(px, py, TS, 2, '#7a6a98');
+      if (open(x, y + 1)) { r(px, py + 11, TS, 5, '#1b1c2e'); r(px + 3, py + 12, 3, 3, rn() < .5 ? '#ffd36a' : '#34384f'); r(px + 10, py + 12, 3, 3, rn() < .3 ? '#ffd36a' : '#34384f'); }
+      if (rn() < .18) { r(px + 4, py + 3, 7, 5, '#2a2340'); r(px + 5, py + 2, 5, 1, '#6a5a88'); }
+    }
+  }
+  [[4, 3], [10, 6], [15, 3], [4, 6], [15, 6], [10, 3], [4, 9], [15, 9]].forEach(([x, y]) => { const px = x * TS, py = MY + y * TS; for (let i = 0; i < 4; i++) r(px + 2 + i * 3, py + 1, 2, 3, '#454a6a'); });
+});
+function gameDeal(run) {
+  const mover = (tx, ty, dir) => ({ tx, ty, nx: tx, ny: ty, p: 0, dir, t: 0 });
+  const pos = m => ({ x: (m.tx + (m.nx - m.tx) * m.p) * TS + 8, y: MY + (m.ty + (m.ny - m.ty) * m.p) * TS + 8 });
+  const P = mover(9, 6, null);
+  let want = null, carry = 3, buyers = [], bSpawn = .3, cops = [], streak = 0, streakT = 0, elapsed = 0;
+  const stash = [{ x: 0, y: 0 }, { x: 19, y: 9 }, { x: 19, y: 0 }, { x: 0, y: 9 }];
+  const addCop = () => { const c = stash.slice().sort((a, b) => (Math.abs(b.x - P.tx) + Math.abs(b.y - P.ty)) - (Math.abs(a.x - P.tx) + Math.abs(a.y - P.ty)))[0]; const m = mover(c.x, c.y, c.x ? 'left' : 'right'); m.chase = 0; m.seen = false; cops.push(m); };
+  addCop();
+  function move(m, sp, dt, choose) {
+    let d = sp * dt / TS;
+    while (d > 0) {
+      if (m.nx === m.tx && m.ny === m.ty) {
+        const dir = choose(m);
+        if (!dir) return;
+        m.dir = dir; m.nx = m.tx + DIRS[dir][0]; m.ny = m.ty + DIRS[dir][1]; m.p = 0;
+      }
+      const need = 1 - m.p;
+      if (d < need) { m.p += d; return; }
+      d -= need; m.tx = m.nx; m.ty = m.ny; m.p = 0;
+    }
+  }
+  function bfsStep(sx, sy, tx, ty) {
+    if (sx === tx && sy === ty) return null;
+    const seen = new Map(), qq = [[sx, sy, null]]; seen.set(sx + ',' + sy, 1);
+    while (qq.length) {
+      const [x, y, first] = qq.shift();
+      for (const k in DIRS) {
+        const X = x + DIRS[k][0], Y = y + DIRS[k][1], key = X + ',' + Y;
+        if (!open(X, Y) || seen.has(key)) continue;
+        seen.set(key, 1); const f = first || k;
+        if (X === tx && Y === ty) return f;
+        qq.push([X, Y, f]);
+      }
+    }
+    return null;
+  }
+  function sees(c) {
+    if (Math.abs(c.tx - P.tx) + Math.abs(c.ty - P.ty) <= 1) return true;
+    if (!c.dir) return false;
+    const [dx, dy] = DIRS[c.dir];
+    for (let i = 1, x = c.tx + dx, y = c.ty + dy; i <= 6 && open(x, y); i++, x += dx, y += dy) if (x === P.tx && y === P.ty) return true;
+    return false;
+  }
+  const OPP = { up: 'down', down: 'up', left: 'right', right: 'left' };
+  return {
+    update(dt) {
+      elapsed += dt; P.t += dt;
+      for (const k in DIRS) if (hit[k]) want = k;
+      if (!want || !held[want]) for (const k in DIRS) if (held[k]) want = k;
+      // reverse in place feels instant
+      if (want && P.dir === OPP[want] && (P.nx !== P.tx || P.ny !== P.ty)) {
+        const a = P.tx, b = P.ty; P.tx = P.nx; P.ty = P.ny; P.nx = a; P.ny = b; P.p = 1 - P.p; P.dir = want;
+      }
+      const anyHeld = TOPK.some(k => held[k]);
+      move(P, 84, dt, () => {
+        if (want && open(P.tx + DIRS[want][0], P.ty + DIRS[want][1]) && anyHeld) return want;
+        if (P.dir && anyHeld && open(P.tx + DIRS[P.dir][0], P.ty + DIRS[P.dir][1])) return P.dir;
+        return null;
+      });
+      const me = pos(P);
+      // stash
+      stash.forEach(s => {
+        if (Math.hypot(s.x * TS + 8 - me.x, MY + s.y * TS + 8 - me.y) < 11 && carry < 5) { carry = 5; sfx('ok'); pop('RELOAD', me.x, me.y - 12, '#9fe8ff'); }
+      });
+      // buyers
+      bSpawn -= dt;
+      if (bSpawn <= 0 && buyers.length < 3) {
+        for (let tries = 0; tries < 20; tries++) {
+          const x = Math.floor(rand(0, 20)), y = Math.floor(rand(0, 10));
+          if (!open(x, y) || Math.abs(x - P.tx) + Math.abs(y - P.ty) < 5) continue;
+          if (stash.some(s => s.x === x && s.y === y) || buyers.some(b => b.x === x && b.y === y)) continue;
+          const uc = Math.random() < .1 + .03 * run.lvl + elapsed * .002;
+          buyers.push({ x, y, life: 9 / Math.sqrt(run.spd), max: 9 / Math.sqrt(run.spd), kind: uc ? 'cop' : pick(['orange', 'peach', 'lime', 'pear', 'banana', 'plum']), uc });
+          break;
+        }
+        bSpawn = rand(.9, 1.7);
+      }
+      buyers = buyers.filter(b => {
+        b.life -= dt;
+        const bx = b.x * TS + 8, by = MY + b.y * TS + 8;
+        if (Math.hypot(bx - me.x, by - me.y) < 11) {
+          if (carry <= 0) { if (!b.warn) { b.warn = 1; pop('NO STASH!', bx, by - 14, '#ff6a6a'); sfx('bad'); } return b.life > 0; }
+          if (b.uc) {
+            run.heat = clamp(run.heat + .4, 0, 1); pop('UNDERCOVER!', bx, by - 14, '#ff6a6a'); sfx('siren'); bump(4); flashOn('#3f5fd8', .4);
+            streak = 0; addCop(); return false;
+          }
+          carry--; streakT = 4;
+          const rush = b.life / b.max, amt = Math.round((70 + rush * 50) * (1 + Math.min(streak, 8) * .08) * run.pay);
+          streak++; run.take += amt; pop('+' + money(amt), bx, by - 14); coins(bx, by); sfx('coin');
+          return false;
+        }
+        return b.life > 0;
+      });
+      streakT -= dt; if (streakT <= 0) streak = 0;
+      // cops
+      const need = 1 + (run.heat > .35 ? 1 : 0) + (run.heat > .7 ? 1 : 0) + (elapsed > 30 ? 1 : 0) + (run.lvl > 2 ? 1 : 0);
+      if (cops.length < need) { addCop(); sfx('siren'); }
+      let spotted = false;
+      cops.forEach(c => {
+        c.t += dt;
+        if (sees(c)) { if (c.chase <= 0) { sfx('siren'); pop('!', pos(c).x, pos(c).y - 18, '#ff4040'); } c.chase = 3.2; spotted = true; }
+        else c.chase -= dt;
+        const chasing = c.chase > 0 || run.heat >= 1;
+        const sp = (chasing ? 70 : 42) * Math.sqrt(run.spd) * (run.heat >= 1 ? 1.08 : 1);
+        move(c, sp, dt, m => {
+          if (chasing) { const s = bfsStep(m.tx, m.ty, P.tx, P.ty); if (s) return s; }
+          const opts = Object.keys(DIRS).filter(k => open(m.tx + DIRS[k][0], m.ty + DIRS[k][1]) && k !== OPP[m.dir]);
+          return opts.length ? pick(opts) : OPP[m.dir];
+        });
+        const q = pos(c);
+        if (Math.hypot(q.x - me.x, q.y - me.y) < 9) run.bust('CUFFED!');
+      });
+      run.heat = clamp(run.heat + (spotted ? dt * .2 : -dt * .025), 0, 1);
+    },
+    draw() {
+      g.drawImage(DEAL_BG, 0, 0);
+      // vision lanes
+      cops.forEach(c => {
+        if (!c.dir) return;
+        const [dx, dy] = DIRS[c.dir];
+        const a = c.chase > 0 ? '#ff404030' : '#ffe14d20';
+        for (let i = 1, x = c.tx + dx, y = c.ty + dy; i <= 6 && open(x, y); i++, x += dx, y += dy) R(x * TS, MY + y * TS, TS, TS, a);
+      });
+      stash.forEach((s, i) => {
+        const x = s.x * TS + 2, y = MY + s.y * TS + 3;
+        R(x, y, 12, 10, OUT); R(x + 1, y + 1, 10, 8, '#2f7a4a'); R(x, y + 2, 12, 1, '#17402a'); R(x + 3, y + 4, 6, 3, '#17402a');
+        if (carry < 2 && Math.floor(performance.now() / 200) % 2) text('^', x + 5, y - 7, '#9fe8ff');
+      });
+      buyers.forEach(b => {
+        const bx = b.x * TS + 8, by = MY + b.y * TS + 15;
+        npc(b.kind, bx, by, 0, { shades: b.uc, cap: false });
+        const frac = b.life / b.max;
+        R(bx - 6, by - 21, 12, 2, '#000a'); R(bx - 6, by - 21, 12 * frac, 2, frac < .3 ? '#ff4040' : '#7fe07a');
+        text('\u2665', bx - 2, by - 28, '#ff8fc0', { sh: '#000' });
+      });
+      const me = pos(P);
+      {
+        const mx = Math.round(me.x), my = Math.round(me.y), w = (P.nx !== P.tx || P.ny !== P.ty) ? Math.floor(P.t * 10) % 2 : 0;
+        R(mx - 6, my + 4, 5, 3 - w, '#b9622a'); R(mx + 1, my + 4, 5, 2 + w, '#b9622a');
+        g.drawImage(HEAD, mx - 9, my - 11);
+        R(mx - 8, my - 13, 16, 5, '#2f3346'); R(mx - 8, my - 10, 16, 1, '#454b66'); R(mx - 8, my - 5, 7, 2, '#06060a'); R(mx + 1, my - 5, 7, 2, '#06060a'); R(mx - 1, my - 5, 2, 1, '#06060a');
+      }
+      cops.forEach(c => { const q = pos(c); npc('cop', q.x, q.y + 7, c.t); if (c.chase > 0 && Math.floor(c.t * 8) % 2) { R(q.x - 6, q.y - 13, 4, 2, '#ff3040'); R(q.x + 2, q.y - 13, 4, 2, '#4080ff'); } });
+      // stash pips
+      R(0, 174, W, 6, '#0d0816'); text('STASH', 3, 175, '#9fe8ff');
+      for (let i = 0; i < 5; i++) R(27 + i * 6, 175, 5, 4, i < carry ? '#fff' : '#333');
+      if (streak > 1) text('COMBO X' + (1 + Math.min(streak, 8) * .08).toFixed(2), 317, 175, '#ffe680', { r: 1 });
+      if (carry === 0) text('RELOAD AT A DUMPSTER', W / 2, 175, '#ff6a6a', { c: 1 });
+    }
+  };
+}
+
+/* --- pimp ---------------------------------------------------------- */
+const PIMP_BG = layer((r, x) => {
+  const rn = seeded(31);
+  for (let y = 0; y < 136; y++) r(0, y, W, 1, y < 40 ? '#1a0a33' : y < 90 ? '#2c0f4a' : '#481660');
+  for (let i = 0; i < 50; i++) r(rn() * W, rn() * 60, 1, 1, '#ffffff66');
+  // storefronts
+  const fronts = [[0, 96, '#2a1848', '#ff8fc0', 'LOUNGE'], [96, 28, '#20143c', '#000', ''], [124, 72, '#32184e', '#40e0ff', 'BIJOU'], [196, 28, '#20143c', '#000', ''], [224, 96, '#2a1848', '#ffe680', 'FURS']];
+  fronts.forEach(([fx, fw, c, neon, label], i) => {
+    r(fx, 34 + i % 2 * 10, fw, 102, c);
+    for (let wy = 44 + i % 2 * 10; wy < 86; wy += 11) for (let wx = fx + 6; wx < fx + fw - 8; wx += 12) r(wx, wy, 7, 7, rn() < .35 ? '#ffd36a' : '#160c2a');
+    if (label) {
+      r(fx + 8, 90, fw - 16, 15, '#120820'); r(fx + 8, 90, fw - 16, 1, neon); r(fx + 8, 104, fw - 16, 1, neon);
+      r(fx + 12, 110, fw - 24, 26, '#160c2a'); r(fx + 13, 111, fw - 26, 24, neon + '30');
+    }
+  });
+  // doorways
+  [110, 210].forEach(d => {
+    r(d - 11, 98, 22, 38, '#6a4a2a'); r(d - 9, 100, 18, 36, '#0c0614'); r(d - 9, 100, 18, 2, '#ffe680'); r(d - 2, 90, 4, 6, '#ffe680');
+  });
+  r(0, 136, W, 22, '#55506a'); for (let i = 0; i < W; i += 22) r(i, 136, 1, 22, '#44405a');
+  r(0, 156, W, 2, '#8a8498'); r(0, 158, W, 22, '#1c1a28');
+  for (let i = 6; i < W; i += 30) r(i, 168, 16, 2, '#c8b850');
+});
+function neonSigns(t) {
+  const on = n => Math.sin(t * n) > -.8;
+  text('LOUNGE', 48, 95, on(7) ? '#ff8fc0' : '#5a2040', { c: 1 });
+  text('BIJOU', 160, 95, on(5) ? '#40e0ff' : '#205a68', { c: 1 });
+  text('FURS', 272, 95, on(9) ? '#ffe680' : '#6a6020', { c: 1 });
+}
+function gamePimp(run) {
+  const DOORS = [110, 210];
+  const crew = [
+    { x: 40, kind: 'peach' }, { x: 160, kind: 'banana' }, { x: 280, kind: 'plum' }
+  ].map(c => Object.assign(c, { m: rand(.1, .4), rate: rand(.16, .24) * run.spd, over: 0, gone: 0 }));
+  let x = 160, face = 1, moving = 0, hidden = false, swing = 0, rivals = [], rSpawn = 5 / run.spd, cop = null, cSpawn = 7, combo = 0, comboT = 0, lost = 0, t = 0;
+  return {
+    update(dt) {
+      t += dt; swing = Math.max(0, swing - dt * 5); comboT -= dt; if (comboT <= 0) combo = 0;
+      const door = DOORS.find(d => Math.abs(d - x) < 14);
+      if (hidden) {
+        if (hit.up || hit.down || hit.left || hit.right || hit.a) { hidden = false; sfx('move'); }
+      } else {
+        moving = 0;
+        if (held.left) { x -= 128 * dt; face = -1; moving = 1; }
+        if (held.right) { x += 128 * dt; face = 1; moving = 1; }
+        x = clamp(x, 12, W - 12);
+        if (hit.up && door != null) { hidden = true; x = door; sfx('ok'); }
+        if (hit.a) {
+          // rivals first, then crew
+          const rv = rivals.filter(r => !r.ko).sort((a, b) => Math.abs(a.x - x) - Math.abs(b.x - x))[0];
+          swing = 1;
+          if (rv && Math.abs(rv.x - x) < 26) {
+            rv.ko = 1; rv.vx = (rv.x < x ? -1 : 1) * 260; sfx('whack'); bump(4); burst(rv.x, 130, 8, ['#fff', '#3fbf6a']);
+            const a = Math.round(90 * run.pay); run.take += a; pop('SMACK +' + money(a), rv.x, 112, '#7fe07a');
+          } else {
+            const c = crew.filter(c => !c.gone && Math.abs(c.x - x) < 24).sort((a, b) => Math.abs(a.x - x) - Math.abs(b.x - x))[0];
+            if (c && c.m >= .3) {
+              combo = Math.min(combo + 1, 6); comboT = 3;
+              const amt = Math.round(c.m * c.m * 300 * (1 + combo * .25) * run.pay);
+              run.take += amt; pop('+' + money(amt), c.x, 96); coins(c.x, 124, 8); sfx('coin');
+              c.m = 0; c.over = 0; run.heat = clamp(run.heat + .012, 0, 1);
+            } else sfx('move');
+          }
+        }
+      }
+      // crew
+      crew.forEach(c => {
+        if (c.gone) { c.gone -= dt; if (c.gone <= 0) { c.gone = 0; c.m = 0; c.over = 0; } return; }
+        c.m = Math.min(1, c.m + c.rate * dt);
+        if (c.m >= 1) {
+          c.over += dt;
+          if (c.over > 4.5) lose(c, 'QUIT!');
+        }
+      });
+      // rivals
+      rSpawn -= dt;
+      if (rSpawn <= 0 && rivals.filter(r => !r.ko).length < 2) {
+        const left = Math.random() < .5, alive = crew.filter(c => !c.gone);
+        if (alive.length) { rivals.push({ x: left ? -14 : W + 14, tgt: pick(alive), steal: 0, walk: 0 }); }
+        rSpawn = rand(4, 7) / run.spd;
+      }
+      rivals = rivals.filter(r => {
+        r.walk += dt;
+        if (r.ko) { r.x += r.vx * dt; return r.x > -30 && r.x < W + 30; }
+        if (r.tgt.gone) { const a = crew.filter(c => !c.gone); if (a.length) r.tgt = pick(a); }
+        const d = r.tgt.x - r.x;
+        if (Math.abs(d) > 16) { r.x += Math.sign(d) * 42 * run.spd * dt; }
+        else {
+          r.steal += dt;
+          if (r.steal > 2.4) { lose(r.tgt, 'POACHED!'); r.ko = 1; r.vx = Math.sign(-d || 1) * 70; }
+        }
+        return true;
+      });
+      // cops
+      cSpawn -= dt;
+      if (!cop && cSpawn <= 1.7 && !run._warned) { run._warned = 1; sfx('siren'); }
+      if (!cop && cSpawn <= 0) {
+        cop = { x: -70, dir: 1, hit: false }; if (Math.random() < .5) { cop.x = W + 70; cop.dir = -1; }
+        cSpawn = rand(7, 10) / Math.sqrt(run.spd); run._warned = 0;
+      }
+      if (cop) {
+        cop.x += cop.dir * 190 * dt;
+        if (!cop.hit && !hidden && Math.abs(cop.x - x) < 44) {
+          cop.hit = true; run.heat = clamp(run.heat + .34, 0, 1); pop('SPOTTED!', x, 92, '#ff6a6a'); sfx('bad'); bump(4); flashOn('#3f5fd8', .35);
+          if (run.heat >= 1) run.bust('PICKED UP!');
+        }
+        if (cop.x < -90 || cop.x > W + 90) cop = null;
+      }
+      function lose(c, msg) {
+        c.gone = 4; lost++; pop(msg, c.x, 90, '#ff6a6a'); sfx('bad'); bump(2);
+        if (lost >= 3) run.finish('CREW QUIT!');
+      }
+    },
+    draw() {
+      g.drawImage(PIMP_BG, 0, 0);
+      neonSigns(t);
+      const warn = !cop && cSpawn <= 1.7;
+      crew.forEach(c => {
+        if (c.gone) { R(c.x - 8, 145, 16, 1, '#3a3650'); text('GONE', c.x, 130, '#88829a', { c: 1 }); return; }
+        const shake = c.m >= 1 ? Math.floor(t * 12) % 2 : 0;
+        npc(c.kind, c.x + shake, 146, 0, { shades: true });
+        // earnings meter
+        R(c.x - 11, 121, 22, 4, OUT); R(c.x - 10, 122, 20 * c.m, 2, c.m >= 1 ? '#ffe680' : c.m >= .3 ? '#7fe07a' : '#567');
+        if (c.m >= 1) { text('\u2665\u2665\u2665', c.x, 112 - (Math.floor(t * 5) % 2), '#ffe680', { c: 1, sh: '#000' }); R(c.x - 11, 126, 22 * (1 - c.over / 4.5), 1, '#ff4040'); }
+      });
+      rivals.forEach(r => {
+        npc('rival', r.x, 148, r.ko ? 0 : r.walk, { hat: '#1e7f42', mad: true });
+        if (r.steal > 0 && !r.ko) { R(r.x - 8, 123, 16, 2, '#000'); R(r.x - 8, 123, 16 * r.steal / 2.4, 2, '#ff4040'); }
+      });
+      if (hidden) {
+        g.globalAlpha = .55; frutti(x, 136, { outfit: 'pimp' }); g.globalAlpha = 1;
+        text('HIDING', x, 88, '#9fe8ff', { c: 1, sh: '#000' });
+      } else {
+        frutti(x, 150, { outfit: 'pimp', step: moving ? t : 0 });
+        // cane
+        const sw = swing > 0 ? 1 : 0;
+        if (sw) { R(x + face * 9 - (face < 0 ? 16 : 0), 132, 16, 2, '#ffe680'); R(x + face * 24 - 1, 130, 3, 3, '#fff'); }
+        else { R(x + face * 10, 134, 1, 16, '#ffe680'); R(x + face * 10 - 1, 133, 3, 2, '#fff'); }
+        const door = DOORS.find(d => Math.abs(d - x) < 14);
+        if (door != null && (warn || cop)) text('^ HIDE', x, 106, '#9fe8ff', { c: 1, sh: '#000' });
+      }
+      // street cop
+      if (cop) {
+        const cx = cop.x, cy = 158;
+        R(cx - 30, cy + 2, 60, 12, '#e8e8f0'); R(cx - 16, cy - 6, 32, 9, '#23304f'); R(cx - 14, cy - 5, 13, 6, '#8ac8e8'); R(cx + 1, cy - 5, 13, 6, '#8ac8e8');
+        R(cx - 30, cy + 8, 60, 2, '#27389a'); const bl = Math.floor(t * 10) % 2; R(cx - 8, cy - 9, 8, 3, bl ? '#ff2030' : '#601018'); R(cx, cy - 9, 8, 3, bl ? '#203060' : '#3080ff');
+        R(cx - 22, cy + 12, 9, 5, '#000'); R(cx + 13, cy + 12, 9, 5, '#000');
+        const vis = g.globalAlpha; g.globalAlpha = .25; R(cx + cop.dir * 30 - (cop.dir < 0 ? 44 : 0), cy + 3, 44, 8, '#ffffa0'); g.globalAlpha = vis;
+      }
+      if (warn) { if (Math.floor(t * 8) % 2) { R(0, 14, W, 11, '#3f5fd8'); text('5-0! COPS COMING. GET IN A DOORWAY', W / 2, 17, '#fff', { c: 1 }); } }
+      // HUD strip
+      text('LOST CREW', 4, 172, '#ff9ad0', { sh: '#000' });
+      for (let i = 0; i < 3; i++) R(46 + i * 7, 172, 5, 5, i < lost ? '#ff4040' : '#3a3650');
+      if (combo > 1) text('STYLE X' + (1 + combo * .25).toFixed(2), 316, 172, '#ffe680', { r: 1, sh: '#000' });
+    }
+  };
+}
+
+/* --- heist --------------------------------------------------------- */
+const VAULT_BG = layer(r => {
+  r(0, 0, W, 110, '#38425a');
+  for (let y = 14; y < 110; y += 16) for (let x = (y / 16 | 0) % 2 * 16; x < W; x += 32) { r(x, y, 31, 15, '#414c66'); r(x, y, 31, 1, '#505c78'); r(x + 2, y + 2, 1, 1, '#2a3244'); r(x + 28, y + 12, 1, 1, '#2a3244'); }
+  r(0, 110, W, 70, '#20242f');
+  for (let x = 0; x < W; x += 20) r(x, 110, 1, 70, '#2a2f3d');
+  r(0, 110, W, 2, '#59647f');
+  // round vault door, swung open
+  r(10, 26, 72, 84, '#232a3a'); r(14, 30, 64, 80, '#0d101a');
+  r(80, 22, 12, 88, '#7f8aa4'); r(82, 24, 8, 84, '#a0abc4');
+});
+function drawSafe(x, y, state, t) {
+  // state: 0 locked, 1 current, 2 open
+  R(x, y, 30, 40, OUT); R(x + 1, y + 1, 28, 38, state === 1 ? '#6a7690' : '#4a5470'); R(x + 1, y + 1, 28, 2, '#8a96b0');
+  if (state === 2) {
+    R(x + 4, y + 5, 22, 30, '#0d0f18');
+    R(x + 6, y + 27, 8, 8, '#2f7a4a'); R(x + 16, y + 29, 8, 6, '#2f7a4a');
+  } else {
+    R(x + 5, y + 8, 20, 22, '#3a4258'); R(x + 11, y + 14, 8, 8, OUT); R(x + 12, y + 15, 6, 6, state === 1 ? '#ffe680' : '#8a96b0');
+    const a = t * 6; R(x + 15 + Math.cos(a) * 2, y + 18 + Math.sin(a) * 2, 1, 1, OUT);
+  }
+  if (state === 1) { R(x - 1, y - 2, 32, 1, '#ffe680'); }
+  R(x + 3, y + 40, 4, 2, OUT); R(x + 23, y + 40, 4, 2, OUT);
+}
+function gameHeist(run) {
+  const LOOT = [2500, 4500, 8000, 14000, 24000, 40000];
+  let phase = 'crack', safe = 0, tumbler = 0, needle = .1, dir = 1, zone = 0, width = .26, flashBar = 0, t = 0, opened = [], reason = '';
+  const setZone = () => {
+    const sp = 1.15 + safe * .3 + tumbler * .1; width = Math.max(.09, .25 - safe * .028) / Math.sqrt(run.spd);
+    zone = rand(.05, .95 - width); nspeed = sp * Math.sqrt(run.spd);
+  };
+  let nspeed = 1.2; setZone();
+  // getaway
+  let lane = 1, cx = 120, hp = 3, dist = 0, len = 0, scroll = 0, traf = [], tSpawn = 0, cSpawn = 2, inv = 0, cash = [], kSpawn = 1, warns = [];
+  const LX = l => 94 + l * 44;
+  function startRoad(msg) {
+    phase = 'road'; reason = msg; cx = LX(1); lane = 1; len = 15 + run.heat * 10 + safe; dist = 0;
+    sfx('siren'); pop(msg, W / 2, 60, '#ff6a6a');
+  }
+  function hitCar() {
+    if (inv > 0) return;
+    hp--; inv = 1.1; const lost = Math.round(run.take * .14); run.take -= lost;
+    pop('-' + money(lost), cx, 118, '#ff6a6a'); sfx('crash'); bump(6); flashOn('#fff', .4); burst(cx, 140, 14, ['#ffe680', '#7fe07a', '#fff']);
+    if (hp <= 0) run.bust('WRECKED!');
+  }
+  function drawCar(x, y, body, dark, o = {}) {
+    x = Math.round(x); y = Math.round(y);
+    R(x - 10, y - 15, 20, 30, OUT); R(x - 9, y - 14, 18, 28, body); R(x - 9, y - 14, 2, 28, dark); R(x + 7, y - 14, 2, 28, dark);
+    R(x - 7, y - 8, 14, 7, '#8ac8e8'); R(x - 7, y + 5, 14, 5, '#5a8ab0'); R(x - 6, y - 1, 12, 6, dark);
+    R(x - 11, y - 11, 2, 6, '#000'); R(x + 9, y - 11, 2, 6, '#000'); R(x - 11, y + 6, 2, 6, '#000'); R(x + 9, y + 6, 2, 6, '#000');
+    if (o.up) { R(x - 8, y - 15, 4, 1, '#ffffa0'); R(x + 4, y - 15, 4, 1, '#ffffa0'); } else { R(x - 8, y + 14, 4, 1, '#ff3040'); R(x + 4, y + 14, 4, 1, '#ff3040'); }
+    if (o.cop) { const b = Math.floor(t * 10) % 2; R(x - 7, y - 1, 7, 3, b ? '#ff2030' : '#601018'); R(x, y - 1, 7, 3, b ? '#203060' : '#3080ff'); }
+  }
+  return {
+    update(dt) {
+      t += dt; flashBar = Math.max(0, flashBar - dt * 4);
+      if (phase === 'crack') {
+        needle += dir * nspeed * dt;
+        if (needle >= 1) { needle = 1; dir = -1; } if (needle <= 0) { needle = 0; dir = 1; }
+        run.heat = clamp(run.heat + dt * (.014 + safe * .004), 0, 1);
+        if (hit.a) {
+          if (needle >= zone && needle <= zone + width) {
+            tumbler++; flashBar = 1; sfx('click'); burst(40 + needle * 240, 145, 5, ['#7fe07a', '#fff']);
+            if (tumbler >= 3) {
+              const amt = Math.round(LOOT[safe] * run.pay); run.take += amt;
+              opened.push(safe); pop('+' + money(amt), 124 + safe * 32, 56); coins(124 + safe * 32, 80, 14); sfx('win');
+              safe++; tumbler = 0;
+              if (safe >= LOOT.length) startRoad('VAULT CLEANED! GO!'); else phase = 'choice';
+            } else setZone();
+          } else {
+            run.heat = clamp(run.heat + .17, 0, 1); sfx('bad'); bump(3); flashOn('#ff2030', .3); pop('ALARM +17%', 160, 118, '#ff6a6a'); setZone();
+          }
+        }
+        if (run.heat >= 1) startRoad('SIRENS! RUN!');
+      } else if (phase === 'choice') {
+        run.heat = clamp(run.heat + dt * .05, 0, 1);
+        if (hit.right || hit.a) { phase = 'crack'; setZone(); sfx('ok'); }
+        if (hit.down) startRoad('TIME TO GO!');
+        if (run.heat >= 1) startRoad('SIRENS! RUN!');
+      } else {
+        dist += dt; inv = Math.max(0, inv - dt);
+        const sp = 170 + dist * 5; scroll += sp * dt;
+        if (hit.left) { lane = Math.max(0, lane - 1); sfx('move'); }
+        if (hit.right) { lane = Math.min(3, lane + 1); sfx('move'); }
+        cx += (LX(lane) - cx) * Math.min(1, dt * 16);
+        // traffic
+        tSpawn -= dt;
+        if (tSpawn <= 0) {
+          const free = [0, 1, 2, 3].filter(l => !traf.some(c => c.lane === l && c.y < 40 && !c.cop));
+          const n = dist > 8 && Math.random() < .4 ? 2 : 1;
+          for (let i = 0; i < n && free.length > 1; i++) { const l = free.splice(Math.floor(Math.random() * free.length), 1)[0]; traf.push({ lane: l, y: -20, v: sp * .55, c: pick(['#e8b830', '#4cb0c8', '#d060a8', '#70c060', '#e87840']) }); }
+          tSpawn = rand(.55, .95) * (1 - run.heat * .2);
+        }
+        cSpawn -= dt;
+        if (cSpawn <= 0) {
+          warns.push({ lane, t: .75 });
+          cSpawn = rand(2.8, 4.4) * (1 - run.heat * .45);
+        }
+        warns = warns.filter(w => { w.t -= dt; if (w.t <= 0) { traf.push({ lane: w.lane, y: 200, v: -170, cop: true }); sfx('siren'); return false; } return true; });
+        traf.forEach(c => { c.y += c.v * dt; if (Math.abs(c.y - 150) < 26 && Math.abs(LX(c.lane) - cx) < 20) hitCar(); });
+        traf = traf.filter(c => c.y < 210 && c.y > -60);
+        // cash bags
+        kSpawn -= dt;
+        if (kSpawn <= 0) { cash.push({ lane: Math.floor(rand(0, 4)), y: -10 }); kSpawn = rand(1.2, 2.4); }
+        cash = cash.filter(c => {
+          c.y += sp * dt;
+          if (Math.abs(c.y - 150) < 18 && Math.abs(LX(c.lane) - cx) < 16) { const a = Math.round((500 + safe * 600) * run.pay); run.take += a; pop('+' + money(a), cx, 118); coins(cx, 134); sfx('coin'); return false; }
+          return c.y < 200;
+        });
+        if (run.done) return;
+        if (dist >= len) { run.finish('SAFEHOUSE!'); }
+      }
+    },
+    draw() {
+      if (phase !== 'road') {
+        g.drawImage(VAULT_BG, 0, 0);
+        // lights when alarm high
+        if (run.heat > .5 && Math.floor(t * 4) % 2) { g.globalAlpha = (run.heat - .4) * .4; R(0, 14, W, 96, '#ff2030'); g.globalAlpha = 1; }
+        for (let i = 0; i < LOOT.length; i++) drawSafe(108 + i * 34, 68, i < safe ? 2 : i === safe ? 1 : 0, t + i);
+        frutti(58, 110, { outfit: 'heist' });
+        if (safe > 0) { R(68, 96, 13, 14, OUT); R(69, 97, 11, 12, '#b89a60'); text('\u2665', 72, 100, '#3a2a10'); }
+        // panel
+        R(0, 118, W, 62, '#10121c'); R(0, 118, W, 1, '#59647f');
+        if (phase === 'crack') {
+          text('SAFE ' + (safe + 1) + ' OF 6', 8, 123, '#fff');
+          text('WORTH ' + money(LOOT[safe] * run.pay), W - 8, 123, '#ffe680', { r: 1 });
+          for (let i = 0; i < 3; i++) { R(128 + i * 22, 122, 18, 7, OUT); R(129 + i * 22, 123, 16, 5, i < tumbler ? '#7fe07a' : '#333a4c'); }
+          const bx = 20, bw = 280, by = 137;
+          R(bx - 2, by - 2, bw + 4, 18, '#59647f'); R(bx, by, bw, 14, '#232838');
+          R(bx + zone * bw, by, width * bw, 14, flashBar ? '#fff' : '#3fbf6a');
+          R(bx + zone * bw, by, width * bw, 2, '#8af0a8');
+          const nx = bx + needle * bw;
+          R(nx - 1, by - 4, 3, 22, '#ffe680'); R(nx - 3, by - 6, 7, 2, '#ffe680');
+          text('PRESS SPACE IN THE GREEN', W / 2, 162, '#9aa4bc', { c: 1 });
+        } else {
+          text('SAFE OPEN. TAKE SO FAR ' + money(run.take), W / 2, 124, '#ffe680', { c: 1 });
+          const on = Math.floor(t * 6) % 2;
+          R(14, 137, 142, 30, on ? '#3fbf6a' : '#2e8a4e'); text('> CRACK NEXT', 85, 142, '#fff', { c: 1, s: 1 });
+          text('+' + money(LOOT[safe] * run.pay) + ' MORE', 85, 154, '#fff', { c: 1 });
+          R(164, 137, 142, 30, '#b03030'); text('_ RUN FOR IT', 235, 142, '#fff', { c: 1 });
+          text('DRIVE WITH ' + money(run.take), 235, 154, '#fff', { c: 1 });
+          text('THE ALARM KEEPS CLIMBING WHILE YOU THINK', W / 2, 171, '#9aa4bc', { c: 1 });
+        }
+      } else {
+        // road
+        R(0, 0, W, H, '#2a4a30');
+        const off = scroll % 40;
+        for (let y = -40 + off; y < H; y += 40) {
+          R(4, y, 40, 26, '#39405a'); R(10, y + 4, 8, 6, '#ffd36a'); R(26, y + 12, 8, 6, '#ffd36a');
+          R(276, y + 10, 40, 26, '#4a3a5a'); R(284, y + 14, 8, 6, '#ffd36a'); R(300, y + 22, 8, 6, '#232338');
+          R(58, y + 20, 8, 8, '#1e6a34'); R(254, y + 2, 8, 8, '#1e6a34');
+        }
+        R(70, 0, 180, H, '#33333f'); R(70, 0, 3, H, '#e8e8e8'); R(247, 0, 3, H, '#e8e8e8');
+        for (let l = 1; l < 4; l++) for (let y = -30 + scroll % 30; y < H; y += 30) R(72 + l * 44, y, 2, 14, '#c8c8c8');
+        cash.forEach(c => { R(LX(c.lane) - 5, c.y - 5, 10, 10, OUT); R(LX(c.lane) - 4, c.y - 4, 8, 8, '#2f7a4a'); text('\u2665', LX(c.lane) - 2, c.y - 2, '#ffe680'); });
+        traf.forEach(c => { if (c.cop) drawCar(LX(c.lane), c.y, '#e8e8f0', '#27389a', { up: true, cop: true }); else drawCar(LX(c.lane), c.y, c.c, '#00000055'); });
+        warns.forEach(w => { if (Math.floor(w.t * 12) % 2) { R(LX(w.lane) - 6, 164, 12, 12, '#ff2030'); text('!', LX(w.lane), 167, '#fff'); } });
+        if (!(inv > 0 && Math.floor(t * 14) % 2)) {
+          drawCar(cx, 150, '#d8304a', '#9a1636', { up: true });
+          g.drawImage(MINI, Math.round(cx) - 5, 142);
+          R(Math.round(cx) - 5, 142, 10, 2, '#15151f');
+        }
+        // gauge
+        R(258, 22, 54, 7, OUT); R(259, 23, 52 * clamp(dist / len, 0, 1), 5, '#7fe07a'); text('SAFEHOUSE', 285, 31, '#fff', { c: 1, sh: '#000' });
+        text('CAR', 6, 22, '#fff', { sh: '#000' }); for (let i = 0; i < 3; i++) R(6 + i * 10, 30, 8, 6, i < hp ? '#d8304a' : '#333');
+        text('LEFT / RIGHT', 6, 170, '#fff', { sh: '#000' });
+      }
+    }
+  };
+}
+
+/* --- bank fraud ---------------------------------------------------- */
+const BANKS = ['#2f7ae0', '#3fbf6a', '#e8a020', '#d060a8'];
+const NAMES = [['M. PEACH', 'M. PEECH'], ['A. PLUMB', 'A. PLUM'], ['B. MANGO', 'B. MANGOE'], ['D. FIGG', 'D. FIG'], ['L. QUINCE', 'L. QUINSE'], ['R. MELON', 'R. MELLON'], ['G. CHERRY', 'G. CHERY'], ['T. LYCHEE', 'T. LITCHI']];
+function makeSig() { const pts = []; for (let i = 0; i < 8; i++) pts.push([3 + i * 6, 2 + Math.floor(Math.random() * 11)]); return pts; }
+function fakeSig(s) { const c = s.map(p => p.slice()); for (let k = 0; k < 2; k++) { const i = 1 + Math.floor(Math.random() * 6); c[i][1] = c[i][1] > 7 ? c[i][1] - 7 : c[i][1] + 7; } return c; }
+function drawSig(pts, x, y, col) {
+  g.fillStyle = col;
+  for (let i = 0; i < pts.length - 1; i++) {
+    let [x0, y0] = pts[i], [x1, y1] = pts[i + 1]; const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) || 1;
+    for (let k = 0; k <= n; k++) g.fillRect(Math.round(x + x0 + (x1 - x0) * k / n), Math.round(y + y0 + (y1 - y0) * k / n), 1, 1);
+  }
+}
+const FRAUD_BG = layer(r => {
+  const rn = seeded(5);
+  r(0, 0, W, H, '#0e1a18');
+  // night window
+  r(6, 18, 84, 60, '#2a3a38'); r(8, 20, 80, 56, '#101c34');
+  let x = 8; while (x < 88) { const w = 8 + rn() * 12 | 0, h = 12 + rn() * 36 | 0; r(x, 76 - h, w, h, '#1a2848'); for (let wy = 78 - h; wy < 74; wy += 5) for (let wx = x + 2; wx < x + w - 2; wx += 4) if (rn() < .4) r(wx, wy, 2, 2, '#ffd36a'); x += w; }
+  r(47, 20, 2, 56, '#2a3a38'); r(8, 47, 80, 2, '#2a3a38');
+  // desk
+  // right wall panel
+  r(98, 14, 222, 166, '#132320');
+  for (let i = 14; i < H; i += 4) r(98, i, 222, 1, '#16291f');
+  r(97, 14, 1, 166, '#2a4a40');
+});
+function gameFraud(run) {
+  let target, check = null, fuse = 0, fuseMax = 3.4, n = 0, mult = 1, sinceTarget = 0, anim = 0, t = 0, outcome = null, cool = 0, typeT = 0;
+  function newTarget() {
+    const names = pick(NAMES);
+    target = { name: names[0], alt: names[1], bank: Math.floor(Math.random() * 4), sig: makeSig() };
+    sinceTarget = 0;
+  }
+  function newCheck() {
+    const fake = Math.random() < .28 + Math.min(n * .01, .15);
+    const c = { name: target.name, bank: target.bank, sig: target.sig, fake };
+    if (fake) {
+      const tell = Math.floor(Math.random() * 3);
+      if (tell === 0) c.name = target.alt;
+      if (tell === 1) c.bank = (target.bank + 1 + Math.floor(Math.random() * 3)) % 4;
+      if (tell === 2) c.sig = fakeSig(target.sig);
+    }
+    c.amount = Math.max(1, Math.round(380 * Math.pow(1.14, n) * mult * run.pay));
+    check = c; anim = 0; outcome = null;
+    fuseMax = Math.max(1.7, 3.5 - n * .055) / Math.sqrt(run.spd); fuse = fuseMax;
+  }
+  newTarget(); newCheck();
+  function resolve(action) {
+    const c = check; let good = false, msg = '', col = '#fff';
+    if (action === 'cash') {
+      if (!c.fake) {
+        good = true; run.take += c.amount; pop('+' + money(c.amount), 210, 56); coins(210, 90, 12); sfx('coin');
+      } else {
+        run.heat = clamp(run.heat + .26, 0, 1); sfx('bad'); bump(5); flashOn('#ff2030', .45); pop('HONEYPOT! TRACE +26%', 210, 58, '#ff6a6a');
+      }
+    } else if (action === 'shred') {
+      if (c.fake) { good = true; run.heat = clamp(run.heat - .05, 0, 1); pop('CLEAN SHRED -5%', 210, 58, '#7fe07a'); sfx('shred'); }
+      else { sfx('shred'); pop('THAT ONE WAS REAL', 210, 58, '#ffb060'); }
+    } else {
+      run.heat = clamp(run.heat + .07, 0, 1); sfx('bad'); pop('TOO SLOW +7%', 210, 58, '#ff6a6a');
+    }
+    if (good) n++;
+    outcome = { a: action, t: .22 };
+    if (run.heat >= 1) { run.bust('FEDS AT THE DOOR!'); return; }
+    if (++sinceTarget >= 6) { newTarget(); cool = .55; pop('NEW TARGET', 170, 34, '#9fe8ff'); sfx('go'); }
+  }
+  return {
+    update(dt) {
+      t += dt; anim += dt; typeT += dt;
+      run.heat = clamp(run.heat + dt * (.012 + n * .0009), 0, 1);
+      if (run.heat >= 1) { run.bust('FEDS AT THE DOOR!'); return; }
+      if (hit.down && run.take > 0) { run.finish('VANISHED!'); return; }
+      if (cool > 0) { cool -= dt; if (cool <= 0) newCheck(); return; }
+      if (outcome) { outcome.t -= dt; if (outcome.t <= 0 && !run.done) newCheck(); return; }
+      fuse -= dt;
+      if (fuse <= 0) resolve('none');
+      else if (hit.right) resolve('cash');
+      else if (hit.left) resolve('shred');
+    },
+    draw() {
+      g.drawImage(FRAUD_BG, 0, 0);
+      // feds outside when hot
+      if (run.heat > .65) {
+        const n2 = 1 + Math.floor((run.heat - .65) * 8);
+        for (let i = 0; i < n2; i++) npc('cop', 20 + i * 18, 76, t, { shades: true });
+        if (Math.floor(t * 6) % 2) { g.globalAlpha = .25; R(8, 20, 80, 56, '#ff2030'); g.globalAlpha = 1; }
+      }
+      frutti(26, 131 + (Math.floor(typeT * 8) % 2), { outfit: 'fraud' });
+      R(0, 126, 96, 54, '#3a2618'); R(0, 126, 96, 3, '#5e4028'); R(4, 134, 88, 1, '#2a1a10');
+      // laptop
+      R(44, 123, 44, 3, '#555a68'); R(48, 101, 36, 22, OUT); R(49, 102, 34, 20, '#223'); for (let i = 0; i < 4; i++) R(52, 105 + i * 4, 10 + ((t * 8 + i * 3) % 16), 1, '#6fe89a');
+      // target card
+      R(102, 18, 214, 34, OUT); R(103, 19, 212, 32, '#0a1412'); R(103, 19, 212, 1, '#6fe89a');
+      text('TARGET', 107, 22, '#6fe89a');
+      text(target.name, 107, 32, '#fff', { s: 1 }); R(107, 41, 40, 5, BANKS[target.bank]);
+      text('SIG', 186, 22, '#6fe89a'); drawSig(target.sig, 186, 31, '#fff');
+      text('BANK', 244, 22, '#6fe89a'); R(244, 30, 62, 14, BANKS[target.bank]); text('BANK OF ' + 'FRUIT', 275, 34, '#fff', { c: 1 });
+      // check
+      const off = outcome ? (outcome.a === 'cash' ? (0.22 - outcome.t) * 900 : outcome.a === 'shred' ? -(0.22 - outcome.t) * 900 : 0) : clamp((1 - anim * 10), 0, 1) * 60;
+      if (cool <= 0 && check) {
+        const x = 106 + off, y = 60;
+        R(x, y, 206, 72, OUT); R(x + 1, y + 1, 204, 70, '#f4efd8');
+        R(x + 1, y + 1, 204, 11, BANKS[check.bank]); text('BANK OF FRUIT', x + 5, y + 4, '#fff');
+        text('NO. ' + (1000 + n * 7), x + 200, y + 4, '#fff', { r: 1 });
+        text('PAY TO: FRUTTI LLC', x + 5, y + 18, '#333');
+        text(money(check.amount), x + 200, y + 18, '#116633', { r: 1, s: 2 });
+        text('FROM:', x + 5, y + 33, '#666'); text(check.name, x + 28, y + 33, '#111');
+        R(x + 5, y + 62, 90, 1, '#888');
+        text('SIGNED', x + 5, y + 45, '#666');
+        drawSig(check.sig, x + 36, y + 46, '#142060');
+        R(x + 110, y + 62, 90, 1, '#888');
+        if (outcome && outcome.a === 'shred') { g.globalAlpha = .6; for (let i = 0; i < 20; i++) R(x + i * 10, y, 2, 72, '#132320'); g.globalAlpha = 1; }
+      }
+      // fuse
+      R(106, 136, 206, 4, '#000'); if (!outcome && cool <= 0) R(106, 136, 206 * clamp(fuse / fuseMax, 0, 1), 4, fuse / fuseMax < .3 ? '#ff4040' : '#6fe89a');
+      // actions
+      R(106, 146, 64, 14, '#6a2020'); text('< SHRED', 138, 150, '#fff', { c: 1 });
+      R(248, 146, 64, 14, '#1e6a3a'); text('CASH >', 280, 150, '#fff', { c: 1 });
+      R(174, 146, 70, 14, '#6a5a10'); text('_ VANISH', 209, 150, '#ffe680', { c: 1 });
+      text('KEEP ' + money(run.take) + ' OR PUSH YOUR LUCK', 209, 167, '#9fe8c0', { c: 1 });
+      if (n > 0) text('STREAK ' + n, 6, 170, '#ffe680');
+    }
+  };
+}
+/* --- gambling ----------------------------------------------------- */
+const WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+const REDS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+const colorOf = n => n === 0 ? 'green' : REDS.has(n) ? 'red' : 'black';
+const POCKET = { red: '#d8304a', black: '#1c1440', green: '#2f9a5a' };
+const CASINO_BG = layer(r => {
+  r(0, 0, W, H, '#123f2c');
+  for (let y = 0; y < H; y += 4) for (let x = (y / 4 & 1) * 4; x < W; x += 8) r(x, y, 1, 1, '#17503a');
+  r(0, 14, W, 62, '#1c1440'); r(0, 74, W, 2, '#ffe680'); r(0, 76, W, 2, '#8a6a20');
+});
+function gameGamble(run) {
+  const BETS = [{ l: '25%', f: .25 }, { l: '50%', f: .5 }, { l: 'ALL IN', f: 1 }], CALLS = ['red', 'black', 'green'];
+  let phase = 'bet', bet = 2, call = 0, pos = 0, from = 0, to = 0, st = 0, T = 2.4, landed = null, pot = 0, stake = 0, allIn = false, t = 0, lastPocket = 0, rides = 0;
+  const stakeFor = i => Math.max(1, i === 2 ? getHearts() : Math.floor(getHearts() * BETS[i].f));
+  const mult = () => CALLS[call] === 'green' ? (allIn ? 30 : 14) : 2;
+  function spin() {
+    phase = 'spin'; st = 0; from = pos;
+    const target = Math.floor(Math.random() * 37);
+    landed = WHEEL[target];
+    to = Math.ceil(from / 37) * 37 + 111 + target;
+    sfx('go');
+  }
+  return {
+    update(dt) {
+      t += dt;
+      if (phase === 'bet') {
+        if (hit.left) { bet = Math.max(0, bet - 1); sfx('move'); }
+        if (hit.right) { bet = Math.min(2, bet + 1); sfx('move'); }
+        if (hit.up) { call = (call + 2) % 3; sfx('move'); }
+        if (hit.down) { call = (call + 1) % 3; sfx('move'); }
+        if (hit.a) {
+          stake = stakeFor(bet); allIn = bet === 2;
+          if (!spendHearts(stake)) { sfx('bad'); return; }
+          pot = stake; run.stake = stake; spin();
+        }
+      } else if (phase === 'spin') {
+        st += dt;
+        const k = clamp(st / T, 0, 1), e = 1 - Math.pow(1 - k, 3);
+        pos = from + (to - from) * e;
+        if (Math.floor(pos) !== lastPocket) { lastPocket = Math.floor(pos); sfx('click'); }
+        if (k >= 1) {
+          if (colorOf(landed) === CALLS[call]) {
+            const m = mult(); pot *= m; run.take = pot - stake; rides++;
+            pop('X' + m + '!', W / 2, 92, '#ffe680'); coins(W / 2, 100, 18); sfx('win'); bump(3);
+            phase = 'won';
+          } else {
+            run.take = 0; pot = 0; run.bust('THE HOUSE WINS');
+          }
+        }
+      } else if (phase === 'won') {
+        if (hit.up) { call = (call + 2) % 3; sfx('move'); }
+        if (hit.down) { call = (call + 1) % 3; sfx('move'); }
+        if (hit.left) run.finish('CASHED OUT!');
+        else if (hit.right || hit.a) spin();
+      }
+    },
+    draw() {
+      g.drawImage(CASINO_BG, 0, 0);
+      // the wheel, as a strip passing under the marker
+      const PW = 24, cx = W / 2, cy = 45, fl = pos - Math.floor(pos);
+      for (let i = -8; i <= 8; i++) {
+        const n = WHEEL[((Math.floor(pos) + i) % 37 + 37) % 37], x = cx + (i - fl) * PW - PW / 2;
+        R(x, cy - 18, PW - 1, 36, POCKET[colorOf(n)]); R(x, cy - 18, PW - 1, 2, '#ffffff30');
+        text(n, x + PW / 2 - 1, cy - 2, '#fdfbff', { c: 1 });
+      }
+      R(cx - 1, 20, 3, 50, '#ffe680'); R(cx - 4, 18, 9, 3, '#ffe680'); R(cx - 4, 69, 9, 3, '#ffe680');
+      frutti(32, 170, { outfit: 'gamble' });
+      uiWindow(64, 84, 248, 88);
+      if (phase === 'bet') {
+        text('BET', 72, 91, '#ffe680');
+        BETS.forEach((b, i) => { const x = 96 + i * 72, on = i === bet; R(x, 88, 66, 22, on ? '#ff8fc0' : '#1c1440'); text(b.l, x + 33, 91, on ? '#1c1440' : '#fdfbff', { c: 1 }); text(money(stakeFor(i)), x + 33, 100, on ? '#1c1440' : '#ffe680', { c: 1 }); });
+        text('CALL', 72, 117, '#ffe680');
+        CALLS.forEach((c, i) => { const x = 96 + i * 72, on = i === call; R(x, 114, 66, 16, OUT); R(x + 1, 115, 64, 14, POCKET[c]); if (on) { R(x, 114, 66, 1, '#ffe680'); R(x, 129, 66, 1, '#ffe680'); R(x, 114, 1, 16, '#ffe680'); R(x + 65, 114, 1, 16, '#ffe680'); } text(c, x + 33, 119, '#fdfbff', { c: 1 }); });
+        const m = CALLS[call] === 'green' ? (bet === 2 ? 30 : 14) : 2;
+        text('PAYS X' + m + ' = ' + money(stakeFor(bet) * m), 188, 138, '#fdfbff', { c: 1 });
+        if (bet === 2) text('ALL IN: LOSE AND YOU ARE AT ZERO', 188, 148, '#ff8fc0', { c: 1 });
+        if (Math.floor(t * 2.5) % 2 === 0) text('SPACE TO SPIN', 188, 160, '#ffe680', { c: 1 });
+      } else if (phase === 'spin') {
+        text('ON ' + CALLS[call], 188, 104, UI.white, { c: 1, s: 2, sh: UI.ink });
+        text('POT ' + money(pot), 188, 128, '#ffe680', { c: 1, s: 2 });
+      } else {
+        text('POT ' + money(pot), 188, 92, '#ffe680', { c: 1, s: 2 });
+        text('LET IT RIDE ON', 188, 110, '#fdfbff', { c: 1 });
+        CALLS.forEach((c, i) => { const x = 104 + i * 58, on = i === call; R(x, 118, 52, 11, on ? '#ffe680' : OUT); R(x + 1, 119, 50, 9, POCKET[c]); text(c, x + 26, 121, '#fdfbff', { c: 1 }); });
+        R(72, 136, 112, 26, '#2f9a5a'); text('< CASH OUT', 128, 141, '#fdfbff', { c: 1 }); text(money(pot), 128, 151, '#ffe680', { c: 1 });
+        R(192, 136, 112, 26, '#e8487f'); text('RIDE IT >', 248, 141, '#fdfbff', { c: 1 }); text('WIN ' + money(pot * mult()), 248, 151, '#ffe680', { c: 1 });
+      }
+    }
+  };
+}
+const GAMES = { gamble: gameGamble, dogs: gameDogs, deal: gameDeal, pimp: gamePimp, heist: gameHeist, fraud: gameFraud };
+
+/* ---------------------------------------------------------------- scenes */
+let scene = null, wipe = 0;
+function go(s) { scene = s; wipe = 1; floats = []; parts = []; }
+
+/* The site's message window: blue panel, stepped white border, ink edge. */
+const UI = { ink: '#1c1440', win: '#24287e', lite: '#4a4fc0', white: '#fdfbff', pink: '#ff8fc0', deep: '#e8487f', yellow: '#ffe680' };
+function uiWindow(x, y, w, h) {
+  R(x - 2, y, w + 4, h, UI.ink); R(x, y - 2, w, h + 4, UI.ink);
+  R(x - 1, y, w + 2, h, UI.white); R(x, y - 1, w, h + 2, UI.white);
+  const bands = 6;
+  for (let i = 0; i < bands; i++) R(x, y + i * h / bands, w, h / bands + 1, ['#4449b4', '#3e43a8', '#383c9c', '#323690', '#2c3087', '#24287e'][i]);
+}
+const CHECKER = layer(r => { r(0, 0, W, H, '#231a4c'); for (let y = 0; y < H; y += 8) for (let x = (y / 8 & 1) * 8; x < W; x += 16) r(x, y, 8, 8, '#2a2058'); });
+const ARCADE = new Image();
+ARCADE.src = 'data:image/png;base64,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';
+
+function heartRain(n) {
+  const b = Array.from({ length: n }, () => ({ x: rand(0, W), y: rand(-H, H), v: rand(14, 34), p: rand(0, 6) }));
+  return {
+    update(dt) { b.forEach(o => { o.y += o.v * dt; o.p += dt * 3; if (o.y > H) { o.y = -6; o.x = rand(0, W); } }); },
+    draw() { b.forEach(o => text('\u2665', o.x + Math.sin(o.p) * 3, o.y, UI.pink)); }
+  };
+}
+function titleScene() {
+  const rain = heartRain(14); let t = 0;
+  return {
+    update(dt) {
+      t += dt; rain.update(dt);
+      if (hit.a || mouse) { sfx('ok'); go(menuScene()); }
+    },
+    draw() {
+      if (ARCADE.complete && ARCADE.naturalWidth) g.drawImage(ARCADE, 0, 0); else g.drawImage(CHECKER, 0, 0);
+      rain.draw();
+      portrait(258, 44 + (Math.floor(t * 2) % 2));
+      text('SIDE', 12, 12, UI.yellow, { s: 5, sh: UI.ink });
+      text('HUSTLE', 12, 44, UI.yellow, { s: 5, sh: UI.ink });
+      R(12, 76, 90, 11, UI.pink); R(11, 77, 92, 9, UI.pink); text('SPOOKY FRUTTI', 57, 79, UI.ink, { c: 1 });
+      uiWindow(12, 104, 150, 54);
+      text('FIVE WAYS TO EARN HEARTS.', 18, 110, UI.white);
+      text('ONE WAY TO LOSE THEM ALL.', 18, 118, UI.white);
+      text('REACH ' + money(GOAL) + ' TO RETIRE.', 18, 126, UI.pink);
+      text('YOU HAVE ' + money(getHearts()), 18, 134, UI.yellow);
+      if (Math.floor(t * 2.5) % 2 === 0) text('PRESS SPACE OR CLICK', 18, 147, UI.yellow);
+    }
+  };
+}
+
+function bars(x, y, n, col) { for (let i = 0; i < 6; i++) R(x + i * 6, y, 5, 4, i < n ? col : UI.ink); }
+function hustleIcon(id, x, y, t) {
+  if (id === 'dogs') { R(x, y + 7, 21, 7, OUT); R(x + 1, y + 8, 19, 5, '#e8b860'); R(x + 2, y + 5, 17, 5, OUT); R(x + 3, y + 6, 15, 3, '#b5482c'); for (let j = 0; j < 13; j++) R(x + 4 + j, y + 6 + j % 2, 1, 1, '#f6c81e'); }
+  if (id === 'deal') { R(x + 3, y + 2, 14, 12, '#2f7a4a'); R(x + 3, y + 2, 14, 2, '#17402a'); R(x + 6, y + 6, 8, 4, '#17402a'); }
+  if (id === 'pimp') { R(x + 1, y + 10, 18, 2, '#4c1a85'); R(x + 5, y + 3, 10, 7, '#6d2bb0'); R(x + 5, y + 7, 10, 2, '#ffe680'); R(x + 14, y, 2, 5, '#ff8fc0'); }
+  if (id === 'heist') { R(x + 3, y + 1, 14, 14, OUT); R(x + 4, y + 2, 12, 12, '#6a7690'); R(x + 7, y + 5, 6, 6, OUT); R(x + 8, y + 6, 4, 4, '#ffe680'); }
+  if (id === 'gamble') { R(x + 2, y, 16, 16, OUT); R(x + 3, y + 1, 14, 14, '#fdfbff'); R(x + 5, y + 3, 2, 2, '#d8304a'); R(x + 13, y + 3, 2, 2, '#d8304a'); R(x + 9, y + 7, 2, 2, '#d8304a'); R(x + 5, y + 11, 2, 2, '#d8304a'); R(x + 13, y + 11, 2, 2, '#d8304a'); }
+  if (id === 'fraud') { R(x, y + 3, 20, 10, OUT); R(x + 1, y + 4, 18, 8, '#f4efd8'); R(x + 1, y + 4, 18, 2, '#2f7ae0'); R(x + 3, y + 9, 9, 1, '#142060'); R(x + 14, y + 8, 3, 2, '#116633'); }
+}
+function menuScene(sel0 = 0) {
+  let sel = sel0, t = 0, confirmReset = 0, denied = 0;
+  const ROW = i => 19 + i * 25;
+  return {
+    update(dt) {
+      t += dt; confirmReset = Math.max(0, confirmReset - dt); denied = Math.max(0, denied - dt);
+      if (hit.up) { sel = (sel + 5) % 6; sfx('move'); }
+      if (hit.down) { sel = (sel + 1) % 6; sfx('move'); }
+      if (hit.r) {
+        if (confirmReset > 0) { save = { rep: {}, best: {}, busts: 0, won: false }; persist(); confirmReset = 0; sfx('bad'); }
+        else confirmReset = 3;
+      }
+      let start = hit.a;
+      if (mouse) {
+        for (let i = 0; i < 6; i++) if (mouse.x < 176 && mouse.y >= ROW(i) && mouse.y < ROW(i) + 24) { if (sel === i) start = true; else { sel = i; sfx('move'); } }
+        if (mouse.x >= 176 && mouse.y > 160) start = true;
+      }
+      if (start) {
+        if (canAfford(HUSTLES[sel])) { sfx('ok'); go(briefScene(HUSTLES[sel])); }
+        else { sfx('bad'); denied = 1.2; }
+      }
+    },
+    draw() {
+      g.drawImage(CHECKER, 0, 0);
+      R(0, 0, W, 13, UI.win); R(0, 13, W, 1, UI.white); R(0, 14, W, 1, UI.ink);
+      text(money(getHearts()), 4, 4, UI.pink, { sh: UI.ink });
+      text(rankOf(getHearts()), 160, 4, UI.yellow, { c: 1, sh: UI.ink });
+      const gw = 62, frac = clamp(getHearts() / GOAL, 0, 1);
+      text(money(GOAL), W - gw - 6, 4, UI.white, { r: 1 });
+      R(W - gw - 3, 4, gw, 5, UI.ink); R(W - gw - 3, 4, gw * frac, 5, UI.pink);
+      HUSTLES.forEach((h, i) => {
+        const y = ROW(i), on = i === sel, open = canAfford(h);
+        R(4, y, 170, 23, UI.ink); R(5, y + 1, 168, 21, on ? '#ffd6e8' : UI.white); R(5, y + 20, 168, 2, on ? UI.pink : '#d8d4f0');
+        hustleIcon(h.id, 8, y + 3, t);
+        text(h.name, 32, y + 3, UI.ink);
+        text('RISK', 32, y + 9 + 1, '#5a5488'); bars(50, y + 10, h.risk, UI.deep);
+        text('PAY', 32, y + 16, '#5a5488'); bars(50, y + 16, h.pay, '#2f9a5a');
+        const lv = save.rep[h.id] || 1;
+        if (h.id !== 'gamble') { text('REP', 96, y + 3, '#5a5488'); for (let k = 0; k < 5; k++) R(110 + k * 5, y + 4, 4, 3, k < lv ? UI.deep : '#d8d4f0'); }
+        if (!open) text('NEED ' + money(h.buyIn), 170, y + 13, UI.deep, { r: 1 });
+        else if (h.buyIn && !h.ownStake) text('STAKE ' + money(h.buyIn), 170, y + 13, '#5a5488', { r: 1 });
+        else if (save.best[h.id]) text('BEST ' + money(save.best[h.id]), 170, y + 13, '#5a5488', { r: 1 });
+      });
+      const h = HUSTLES[sel];
+      uiWindow(180, 19, 134, 141);
+      R(216, 100, 62, 3, UI.ink);
+      fruttiBig(247, 101, 2, { outfit: h.id, step: 0 });
+      let yy = 106;
+      wrap(h.blurb, 126).forEach(l => { text(l, 185, yy, UI.white); yy += 7; });
+      yy += 1;
+      wrap('BUSTED: ' + h.bust, 126).forEach(l => { text(l, 185, yy, UI.pink); yy += 7; });
+      if (denied > 0) text('EARN MORE HEARTS FIRST', 89, 170, UI.pink, { c: 1, sh: UI.ink });
+      else if (Math.floor(t * 2) % 2 === 0) text('SPACE TO HUSTLE', 89, 170, UI.yellow, { c: 1, sh: UI.ink });
+      text(confirmReset > 0 ? 'R AGAIN: CLEAR REP (KEEPS HEARTS)' : 'R CLEAR REP   M ' + (muted ? 'UNMUTE' : 'MUTE'), W - 4, 170, confirmReset > 0 ? UI.pink : UI.white, { r: 1, sh: UI.ink });
+    }
+  };
+}
+
+function briefScene(h) {
+  let t = 0;
+  const lv = save.rep[h.id] || 1;
+  return {
+    update(dt) {
+      t += dt;
+      if (t > .15 && (hit.a || mouse)) { sfx('go'); go(playScene(h)); }
+      if (hit.q) go(menuScene(HUSTLES.indexOf(h)));
+    },
+    draw() {
+      g.drawImage(CHECKER, 0, 0);
+      fruttiBig(56, 150, 3, { outfit: h.id, step: 0 });
+      uiWindow(116, 12, 196, 156);
+      text(h.name, 124, 20, UI.yellow, { s: 2, sh: UI.ink });
+      text('RISK', 124, 38, UI.white); bars(144, 38, h.risk, UI.deep);
+      text('PAY', 188, 38, UI.white); bars(204, 38, h.pay, '#7fe07a');
+      if (h.id !== 'gamble') text('REP ' + lv, 248, 38, UI.yellow);
+      let y = 52;
+      h.how.forEach(l => { wrap(l, 180).forEach((ln, i) => { text((i ? '  ' : '\u2665 ') + ln, 124, y, UI.white); y += 8; }); y += 2; });
+      y += 2;
+      wrap('IF BUSTED: ' + h.bust, 180).forEach(l => { text(l, 124, y, UI.pink); y += 8; });
+      if (h.buyIn && !h.ownStake) text('STAKE TO PLAY: ' + money(h.buyIn) + ' (BACK IF YOU GET AWAY)', 124, 146, UI.yellow);
+      if (Math.floor(t * 2.5) % 2 === 0) text('SPACE TO START', 124, 157, '#7fe07a');
+      text('Q BACK', 304, 157, UI.white, { r: 1 });
+    }
+  };
+}
+
+function playScene(h) {
+  const lvl = save.rep[h.id] || 1;
+  const run = {
+    h, lvl, take: 0, stake: 0, heat: 0, pay: (1 + .35 * (lvl - 1)) * HEART_RATE, spd: 1 + .1 * (lvl - 1), time: h.time, done: null, msg: '', label: null,
+    bust(msg) { if (this.done) return; this.done = 'bust'; this.msg = msg; endT = 1.5; sfx('bust'); bump(7); flashOn('#ff2030', .7); },
+    finish(msg) { if (this.done) return; this.done = 'clean'; this.msg = msg; endT = 1.2; sfx('win'); flashOn('#7fe07a', .3); }
+  };
+  if (!h.ownStake && spendHearts(h.buyIn)) run.stake = h.buyIn;
+  const game = GAMES[h.id](run);
+  let cd = h.ownStake ? 0 : 1.5, endT = 0, last = 3, isP = false;
+  return {
+    isPaused: () => isP,
+    onBlur() { if (!run.done && cd <= 0) isP = true; },
+    update(dt) {
+      if (isP) {
+        if (hit.p || hit.a) isP = false;
+        if (hit.q) go(menuScene(HUSTLES.indexOf(h)));
+        return;
+      }
+      if (hit.p && !run.done) { isP = true; return; }
+      fxUpdate(dt);
+      if (cd > 0) {
+        cd -= dt;
+        const n = Math.ceil(cd / .5);
+        if (n !== last && n > 0) { last = n; sfx('tick'); }
+        if (cd <= 0) sfx('go');
+        return;
+      }
+      if (run.done) { endT -= dt; if (endT <= 0) go(resultScene(run)); return; }
+      game.update(dt);
+      if (run.time != null && !run.done) {
+        const before = Math.ceil(run.time);
+        run.time -= dt;
+        if (Math.ceil(run.time) !== before && run.time <= 5 && run.time > 0) sfx('tick');
+        if (run.time <= 0) { run.time = 0; run.finish("TIME'S UP!"); }
+      }
+    },
+    draw() {
+      game.draw();
+      fxDraw();
+      // HUD
+      R(0, 0, W, 13, UI.win); R(0, 13, W, 1, UI.white);
+      text(h.name, 3, 4, UI.yellow, { sh: UI.ink });
+      if (h.id === 'gamble') text(money(getHearts()) + ' LEFT IN THE WALLET', W - 3, 4, UI.pink, { r: 1, sh: UI.ink });
+      else {
+        text(money(run.take), 104, 4, UI.pink, { c: 1, sh: UI.ink });
+        const lab = { dogs: 'STRIKES', deal: 'HEAT', pimp: 'HEAT', heist: 'ALARM', fraud: 'TRACE' }[h.id];
+        text(lab, 150, 4, UI.white, { sh: UI.ink });
+        const hx = 150 + tw(lab) + 3, hw = 54;
+        R(hx, 4, hw, 5, UI.ink); R(hx, 4, hw * run.heat, 5, run.heat > .66 ? (Math.floor(performance.now() / 120) % 2 ? UI.deep : UI.yellow) : run.heat > .33 ? UI.yellow : '#7fe07a');
+        if (run.time != null) text(Math.ceil(run.time) + 'S', W - 3, 4, run.time <= 5 ? UI.pink : UI.white, { r: 1, sh: UI.ink });
+      }
+      if (cd > 0) {
+        const n = Math.ceil(cd / .5);
+        R(0, 70, W, 34, '#1c1440cc');
+        text(n > 0 ? n : 'GO', W / 2, 78, UI.yellow, { s: 4, c: 1, sh: UI.ink });
+      }
+      if (run.done) {
+        const b = run.done === 'bust';
+        uiWindow(20, 72, W - 40, 34);
+        text(b ? 'BUSTED!' : run.msg, W / 2, 78, b ? UI.pink : UI.yellow, { s: 3, c: 1, sh: UI.ink });
+        if (b) text(run.msg, W / 2, 98, UI.white, { c: 1 });
+      }
+      if (isP) {
+        uiWindow(50, 52, 220, 66);
+        text('PAUSED', W / 2, 60, UI.yellow, { s: 3, c: 1, sh: UI.ink });
+        text('SPACE: BACK TO WORK', W / 2, 92, '#fff', { c: 1 });
+        text('Q: WALK AWAY, LOSE THE STAKE AND TAKE', W / 2, 102, UI.pink, { c: 1 });
+      }
+    }
+  };
+}
+
+function resultScene(run) {
+  const h = run.h, bust = run.done === 'bust';
+  const before = getHearts();
+  let fine = 0, paid = 0;
+  if (bust) {
+    fine = Math.min(before + (h.keep ? run.take : 0), Math.max(Math.round(before * h.finePct), h.fineMin));
+    if (h.keep) paid = run.take;
+    setHearts(before + paid - fine);
+    save.rep[h.id] = 1; save.busts = (save.busts || 0) + 1;
+  } else {
+    paid = run.stake + Math.round(run.take);
+    addHearts(paid);
+    if (!h.ownStake) save.rep[h.id] = Math.min(5, (save.rep[h.id] || 1) + 1);
+    if (run.take > (save.best[h.id] || 0)) save.best[h.id] = Math.round(run.take);
+  }
+  persist();
+  const after = getHearts(), newRep = save.rep[h.id], winNow = after >= GOAL && !save.won;
+  const rain = heartRain(bust ? 0 : Math.round(Math.min(40, 6 + Math.log10(paid + 1) * 6))); let t = 0, shown = before, drop = 0;
+  if (bust) sfx('bust'); else if (paid > 0) sfx('win');
+  return {
+    update(dt) {
+      t += dt; rain.update(dt); drop = Math.min(1, drop + dt * 2.2);
+      const k = clamp((t - .5) / .9, 0, 1); shown = before + (after - before) * k;
+      if (t > .6 && (hit.a || mouse)) {
+        sfx('ok');
+        if (winNow) { save.won = true; persist(); go(winScene()); } else go(menuScene(HUSTLES.indexOf(h)));
+      }
+    },
+    draw() {
+      g.drawImage(CHECKER, 0, 0);
+      rain.draw();
+      if (bust) for (let i = 0; i < 6; i++) { R(238, 30 + i * 24, 82, 1, '#5a5488'); text((6 - i) + 'FT', 240, 24 + i * 24, '#5a5488'); }
+      portrait(262, 44);
+      if (bust) {
+        const by = -150 + drop * 150;
+        for (let i = 0; i < 9; i++) { R(240 + i * 10, by, 3, 180, '#8a90b0'); R(240 + i * 10, by, 1, 180, UI.white); }
+        R(236, by + 70, 84, 4, '#8a90b0');
+      }
+      uiWindow(10, 12, 216, 156);
+      text(bust ? 'BUSTED' : 'CLEAN', 18, 20, bust ? UI.pink : UI.yellow, { s: 4, sh: UI.ink });
+      text(run.msg, 18, 45, UI.white);
+      let y = 58;
+      const line = (a, b, c) => { text(a, 18, y, UI.white); text(b, 216, y, c, { r: 1 }); y += 10; };
+      const minus = n => '-' + money(n), plus = n => '+' + money(n);
+      if (run.stake) line(bust ? 'STAKE LOST' : 'STAKE BACK', (bust ? minus : plus)(run.stake), bust ? UI.pink : '#7fe07a');
+      if (bust && !h.keep && run.take) line('SEIZED', minus(run.take), UI.pink);
+      if (!bust || h.keep) line('THE TAKE', plus(run.take), '#7fe07a');
+      if (bust && fine) line(h.finePct ? 'BAIL (' + Math.round(h.finePct * 100) + '% OF HEARTS)' : 'FINE', minus(fine), UI.pink);
+      R(18, y, 198, 1, UI.white); y += 4;
+      text('HEARTS', 18, y, UI.pink, { s: 2, sh: UI.ink }); text(money(shown), 216, y, UI.yellow, { s: 2, r: 1, sh: UI.ink }); y += 16;
+      if (h.id !== 'gamble') { text(bust ? 'REP RESET TO 1' : 'REP ' + newRep + ': PAYS MORE, MOVES FASTER', 18, y, bust ? UI.pink : UI.yellow); y += 8; }
+      if (after === 0) text('FLAT BROKE. HOT DOGS ARE ALWAYS HIRING.', 18, y, UI.pink);
+      if (t > .6 && Math.floor(t * 2.5) % 2 === 0) text('SPACE TO CONTINUE', 18, 158, UI.white);
+    }
+  };
+}
+
+function winScene() {
+  const rain = heartRain(40); let t = 0;
+  return {
+    update(dt) { t += dt; rain.update(dt); if (t > 1 && (hit.a || mouse)) go(menuScene()); },
+    draw() {
+      for (let y = 0; y < H; y++) R(0, y, W, 1, y < 60 ? '#ff8fc0' : y < 110 ? '#ffb8c8' : y < 130 ? '#6a70d8' : '#ffe680');
+      R(140, 62, 40, 48, UI.white); R(132, 70, 56, 40, UI.white);
+      rain.draw();
+      R(40, 100, 4, 44, '#7a4a1e'); R(24, 96, 36, 6, '#2e8a3e'); R(30, 90, 24, 6, '#2e8a3e');
+      portrait(262, 46);
+      text('RETIRED', W / 2 - 14, 16, UI.yellow, { s: 5, c: 1, sh: UI.ink });
+      text(money(GOAL) + '. PRIVATE ISLAND. NO EXTRADITION.', W / 2 - 14, 50, UI.ink, { c: 1 });
+      text('BUSTED ' + (save.busts || 0) + ' TIMES ALONG THE WAY', W / 2 - 14, 58, UI.ink, { c: 1 });
+      if (t > 1 && Math.floor(t * 2) % 2 === 0) text('SPACE: BACK TO THE HUSTLE', 12, 168, UI.ink);
+    }
+  };
+}
+
+/* ---------------------------------------------------------------- main loop */
+let lastT = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - lastT) / 1000); lastT = now;
+  if (hit.m) { muted = !muted; if (master) master.gain.value = muted ? 0 : .5; }
+  if (wipe > 0) wipe = Math.max(0, wipe - dt * 4);
+  scene.update(dt);
+  const sx = shake > 0 ? Math.round(rand(-shake, shake)) : 0, sy = shake > 0 ? Math.round(rand(-shake, shake)) : 0;
+  g.setTransform(1, 0, 0, 1, sx, sy);
+  scene.draw();
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  if (flash > 0) { g.globalAlpha = flash; R(0, 0, W, H, flashCol); g.globalAlpha = 1; }
+  if (wipe > 0 && !reduced) { const c = 12; for (let i = 0; i < c; i++) R(0, i * H / c, W * wipe, H / c + 1, '#000'); }
+  for (const k in hit) hit[k] = false;
+  mouse = null;
+  requestAnimationFrame(frame);
+}
+go(titleScene());
+requestAnimationFrame(frame);
+cv.focus();
+</script>
