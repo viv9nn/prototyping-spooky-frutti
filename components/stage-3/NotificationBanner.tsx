@@ -36,7 +36,7 @@ export default function NotificationBanner({
       try {
         e.currentTarget.setPointerCapture(e.pointerId);
       } catch {
-        // fallback if capture fails
+        // fallback
       }
 
       startYRef.current = e.clientY;
@@ -110,7 +110,7 @@ export default function NotificationBanner({
     [isDragging, isDismissing, notification.instanceId, onDismiss]
   );
 
-  const stackTop = 14 + index * 72;
+  const stackTop = 14 + index * 76;
   const scale = Math.max(0.9, 1 - index * 0.03);
   const opacity = Math.max(0.85, 1 - index * 0.08);
 
@@ -128,9 +128,9 @@ export default function NotificationBanner({
       role="button"
       tabIndex={0}
       aria-label={`Notification from ${notification.sender}: ${notification.message}. Flick up to dismiss.`}
-      className={`notif-banner ${notification.type === "risky" ? "notif-risky" : "notif-harmless"} ${
-        isDragging ? "notif-dragging" : ""
-      }`}
+      className={`pixel-notif-window window ${
+        notification.type === "risky" ? "pixel-notif-risky" : "pixel-notif-harmless"
+      } ${isDragging ? "pixel-notif-dragging" : ""}`}
       style={{
         top: `${stackTop}px`,
         transform: transformStyle,
@@ -145,16 +145,20 @@ export default function NotificationBanner({
       onPointerUp={handlePointerUpOrCancel}
       onPointerCancel={handlePointerUpOrCancel}
     >
-      <div className="notif-header">
-        <span className="notif-app-icon">{notification.appIcon || "💬"}</span>
-        <span className="notif-app-name">{notification.appLabel || "MESSAGES"}</span>
-        <span className="notif-time">now</span>
+      <div className="pixel-notif-header">
+        <span className="notif-badge-tag">
+          {notification.type === "risky" ? "⚠️ RISKY" : "ℹ️ ALERT"}
+        </span>
+        <span className="notif-app-title">[{notification.appLabel || "MESSAGES"}]</span>
+        <span className="notif-timestamp">NOW</span>
       </div>
-      <div className="notif-body">
-        <strong className="notif-sender">{notification.sender}</strong>
-        <span className="notif-message">{notification.message}</span>
+      <div className="pixel-notif-content">
+        <strong className="notif-sender-text">{notification.sender}:</strong>
+        <span className="notif-msg-text">{notification.message}</span>
       </div>
-      <div className="notif-handle-bar" />
+      <div className="pixel-handle-indicator">
+        <span>▲ ▲ FLICK UP ▲ ▲</span>
+      </div>
     </div>
   );
 }
