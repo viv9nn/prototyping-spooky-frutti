@@ -8,7 +8,7 @@ Run it with `npm install`, then `npm run dev`, and open http://localhost:3000.
 
 | # | Chapter | Slug | What it is |
 | --- | --- | --- | --- |
-| 1 | Dress to Impress | `dress-up` | Dress-up game |
+| 1 | Dress to Impress | `dress-up` | Catch clean clothes for Mr. Honeycrisp; bad grabs and slow finishes cost points |
 | 2 | Hold It In | `first-date` | First date where you hold in a fart while talking |
 | 3 | Late-Night TikTok | `phone` | Flick away risky notifications before Miss Oishii sees them |
 | 4 | Odd Jobs | `job` | Earn the money that pays for the proposal |

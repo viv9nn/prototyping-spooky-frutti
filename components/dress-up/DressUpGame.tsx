@@ -18,6 +18,12 @@ import {
 import PixelAvatar from "./PixelAvatar";
 import ClothingSprite from "./ClothingSprite";
 import { finishChapter } from "@/lib/progress";
+import { DIFFICULTY_SKILL } from "@/lib/proposalPlan";
+
+// Score: a perfect date prep is 100. Grabbing a bad item or taking too long costs points.
+const MISTAKE_COST = 15;
+const PAR_SECONDS = 45;
+const COST_PER_LATE_SECOND = 1;
 
 interface FlyingEntity {
   instanceId: number;
@@ -37,6 +43,9 @@ interface OutfitSlots {
 
 export default function DressUpGame() {
   const [gameState, setGameState] = useState<"PLAYING" | "VICTORY">("PLAYING");
+  const [finalScore, setFinalScore] = useState(0);
+  const mistakes = useRef(0);
+  const startedAt = useRef(0);
   const [slots, setSlots] = useState<OutfitSlots>({
     top: null,
     bottom: null,
@@ -55,6 +64,7 @@ export default function DressUpGame() {
 
   // Clean up any pending timeouts on unmount
   useEffect(() => {
+    startedAt.current = performance.now();
     return () => {
       if (winTimeoutRef.current) clearTimeout(winTimeoutRef.current);
       if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
@@ -161,6 +171,7 @@ export default function DressUpGame() {
         y: relativeY,
       });
     } else {
+      mistakes.current += 1;
       playCatchBad();
       setFeedback({
         id: feedbackId,
@@ -194,7 +205,13 @@ export default function DressUpGame() {
       playWinFanfare();
       if (winTimeoutRef.current) clearTimeout(winTimeoutRef.current);
       winTimeoutRef.current = setTimeout(() => {
-        finishChapter("dress-up", 100);
+        const seconds = (performance.now() - startedAt.current) / 1000;
+        const lateSeconds = Math.max(0, seconds - PAR_SECONDS);
+        const score = Math.round(
+          Math.max(0, 100 - mistakes.current * MISTAKE_COST - lateSeconds * COST_PER_LATE_SECOND),
+        );
+        finishChapter("dress-up", score);
+        setFinalScore(score);
         setGameState("VICTORY");
       }, 1200);
     }
@@ -209,7 +226,8 @@ export default function DressUpGame() {
     }));
   };
 
-  // Reset game
+  // Clear the outfit and start over. The clock and mistakes keep counting, so this
+  // can't erase a bad start. A clean retry goes through ChapterGate for 1 heart.
   const handleRestart = () => {
     if (winTimeoutRef.current) clearTimeout(winTimeoutRef.current);
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
@@ -221,8 +239,10 @@ export default function DressUpGame() {
     });
     setFlyingItems([]);
     setFeedback(null);
-    setGameState("PLAYING");
   };
+
+  const bouquetDifficulty =
+    finalScore >= DIFFICULTY_SKILL.easy ? "Easy" : finalScore >= DIFFICULTY_SKILL.normal ? "Normal" : "Hard";
 
   return (
     <div className="dress-up-container">
@@ -399,20 +419,14 @@ export default function DressUpGame() {
               clean attire when I take you out, Miss Oishii.&rdquo;
             </p>
             <div className="victory-reward-badge">
-              ★ Chapter Complete! Score: 100 ★
+              ★ Chapter Complete! Score: {finalScore} ★
             </div>
             <p className="dialogue-subtext" style={{ marginTop: "8px", color: "var(--yellow)" }}>
-              ✦ Bouquet Skill for The Proposal is now maxed out (Easy)! ✦
+              ✦ Your bouquet task in The Proposal is now rated {bouquetDifficulty}! ✦
             </p>
           </div>
 
           <div className="victory-actions">
-            <button
-              onClick={handleRestart}
-              className="vn-choice victory-btn"
-            >
-              Play Again ↺
-            </button>
             <Link href="/" className="vn-choice victory-btn">
               Back to Arcade ➔
             </Link>
