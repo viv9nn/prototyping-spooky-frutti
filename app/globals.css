@@ -572,7 +572,7 @@ main {
 .dress-up-stage-body {
   position: relative;
   width: 100%;
-  height: 440px;
+  height: 480px;
   display: flex;
   background: #15112e;
   overflow: hidden;
@@ -665,25 +665,27 @@ main {
 
 .honeycrisp-dressing-stage {
   position: relative;
-  width: 270px;
+  width: 250px;
   flex-shrink: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
-  padding-bottom: 10px;
+  justify-content: center;
+  padding: 6px 12px;
+  box-sizing: border-box;
   background: 
-    radial-gradient(circle at 50% 85%, rgba(120, 80, 200, 0.3) 0%, transparent 60%),
-    linear-gradient(to bottom, #231d4d 0%, #191438 100%);
+    radial-gradient(circle at 50% 88%, rgba(130, 90, 220, 0.35) 0%, transparent 65%),
+    linear-gradient(to bottom, #251f52 0%, #171233 100%);
   border-left: 3px solid var(--window-light);
   box-shadow: inset 4px 0 12px rgba(0, 0, 0, 0.45);
   z-index: 15;
+  overflow: hidden;
 }
 
 .stage-pedestal-header {
   position: absolute;
-  top: 10px;
+  top: 8px;
   width: 100%;
   text-align: center;
   z-index: 5;
@@ -691,8 +693,8 @@ main {
 
 .character-label {
   display: inline-block;
-  padding: 3px 14px;
-  font-size: 13px;
+  padding: 2px 12px;
+  font-size: 12px;
   font-weight: bold;
   color: var(--yellow);
   background: var(--ink);
@@ -703,23 +705,31 @@ main {
 
 .fullbody-avatar-container {
   position: relative;
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  padding-top: 24px;
+  box-sizing: border-box;
 }
 
 .fullbody-avatar-svg {
-  width: 210px;
-  height: auto;
-  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.65));
+  height: 380px;
+  max-height: 82%;
+  width: auto;
+  max-width: 100%;
+  display: block;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.65));
 }
 
 .avatar-bubble {
-  padding: 4px 10px;
+  padding: 3px 8px;
   background: var(--window);
   border: 2px solid var(--white);
   box-shadow: 2px 2px 0 var(--ink);
-  margin-bottom: 2px;
+  margin-bottom: 6px;
   white-space: nowrap;
   z-index: 20;
 }
