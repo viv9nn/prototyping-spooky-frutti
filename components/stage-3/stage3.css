@@ -1264,7 +1264,7 @@
 
 .results-stats-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin-bottom: 24px;
 }
@@ -1286,11 +1286,6 @@
   font-size: 22px;
   font-weight: 700;
   color: var(--white);
-}
-
-.stat-hearts .stat-value {
-  color: var(--pink);
-  text-shadow: 0 0 8px var(--pink-deep);
 }
 
 .results-grading-legend {
@@ -1351,19 +1346,48 @@
   background: var(--yellow);
 }
 
-/* Responsive */
-@media (max-width: 900px) {
+/* ==========================================================================
+   Responsive Adaptations
+   ========================================================================== */
+
+/* The scene is a fixed size, so it's zoomed to keep the bed and phone on screen together. */
+
+@media (max-height: 860px) {
   .stage3-viewport {
-    grid-template-columns: 1fr;
-    gap: 20px;
+    zoom: 0.8;
+  }
+}
+
+@media (max-height: 720px) {
+  .stage3-viewport {
+    zoom: 0.65;
+  }
+}
+
+@media (max-width: 860px) {
+  .stage3-hud {
+    flex-wrap: wrap;
   }
 
-  .bedside-scene {
-    height: 380px;
+  .stage3-viewport {
+    zoom: 0.65;
+  }
+}
+
+@media (max-width: 600px) {
+  .stage3-viewport {
+    zoom: 0.5;
+    padding: 12px;
+    gap: 12px;
   }
 
-  .phone-mockup {
-    width: 290px;
-    height: 480px;
+  .hud-timer {
+    min-width: 0;
+  }
+
+  .stage3-modal-backdrop {
+    position: fixed;
+    align-items: flex-start;
+    overflow-y: auto;
   }
 }

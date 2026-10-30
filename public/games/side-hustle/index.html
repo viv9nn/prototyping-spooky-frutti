@@ -435,7 +435,8 @@ const RANKS = [[0, 'BROKE'], [100, 'SMALL FRY'], [400, 'BAD APPLE'], [800, 'BIG 
 const rankOf = b => RANKS.filter(r => b >= r[0]).pop()[1];
 const canAfford = h => getMoney() >= h.buyIn;
 let night = null;
-function startNight() { night = { run: 0, start: getMoney() }; }
+// The night is saved so a refresh resumes it, instead of handing out a fresh set of hustles.
+function startNight() { night = save.night || { run: 0, start: getMoney() }; save.night = night; persist(); }
 
 /* --- hot dogs ------------------------------------------------------ */
 const TOPS = {
@@ -1364,7 +1365,7 @@ function menuScene(sel0 = 0) {
       if (hit.up) { sel = (sel + 5) % 6; sfx('move'); }
       if (hit.down) { sel = (sel + 1) % 6; sfx('move'); }
       if (hit.r) {
-        if (confirmReset > 0) { save = { rep: {}, best: {}, busts: 0 }; persist(); confirmReset = 0; sfx('bad'); }
+        if (confirmReset > 0) { save = { rep: {}, best: {}, busts: 0, night: save.night }; persist(); confirmReset = 0; sfx('bad'); }
         else confirmReset = 3;
       }
       let start = hit.a;
@@ -1518,9 +1519,9 @@ function resultScene(run) {
     if (!h.ownStake) save.rep[h.id] = Math.min(5, (save.rep[h.id] || 1) + 1);
     if (run.take > (save.best[h.id] || 0)) save.best[h.id] = Math.round(run.take);
   }
+  night.run++;
   persist();
   const after = getMoney(), newRep = save.rep[h.id];
-  night.run++;
   const rain = heartRain(bust ? 0 : Math.round(Math.min(40, 6 + Math.log10(paid + 1) * 6))); let t = 0, shown = before, drop = 0;
   if (bust) sfx('bust'); else if (paid > 0) sfx('win');
   return {
@@ -1566,6 +1567,7 @@ function resultScene(run) {
 function nightScene() {
   const earned = Math.max(0, getMoney() - night.start), score = Math.round(clamp(earned / SCORE_TARGET, 0, 1) * 100);
   if (embedded) toSite({ type: 'finish', score });
+  delete save.night; persist();
   const rain = heartRain(score >= 70 ? 30 : 6); let t = 0;
   sfx(score >= 40 ? 'win' : 'bad');
   return {
@@ -1635,7 +1637,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 if (embedded) startNight();
-go(embedded ? menuScene() : titleScene());
+go(embedded ? (night.run >= RUNS_PER_NIGHT ? nightScene() : menuScene()) : titleScene());
 requestAnimationFrame(frame);
 cv.focus();
 </script>

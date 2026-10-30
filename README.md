@@ -8,9 +8,9 @@ Run it with `npm install`, then `npm run dev`, and open http://localhost:3000.
 
 | # | Chapter | Slug | What it is |
 | --- | --- | --- | --- |
-| 1 | Dress to Impress | `dress-up` | Dress-up game |
+| 1 | Dress to Impress | `dress-up` | Catch clean clothes for Mr. Honeycrisp; bad grabs and slow finishes cost points |
 | 2 | Hold It In | `first-date` | First date where you hold in a fart while talking |
-| 3 | Do Not Disturb | `phone` | Turn your phone away from embarrassing texts |
+| 3 | Late-Night TikTok | `phone` | Flick away risky notifications before Miss Oishii sees them |
 | 4 | Odd Jobs | `job` | Earn the money that pays for the proposal |
 | 5 | The Proposal | `proposal` | Finale. Plan five tasks, then watch the proposal unfold |
 
@@ -21,7 +21,7 @@ Chapter names are working titles. Change them in `lib/chapters.ts`.
 - **Hearts are lives.** Players start with 7: 1 for each of the 4 games, plus 3 spare retries. Playing a game costs 1 heart. The finale is free.
 - **No getting stuck.** A retry is refused if it would use a heart needed for a game the player hasn't tried yet.
 - **Best score counts.** A retry can only raise a chapter's score.
-- **Money.** Earned in Odd Jobs and spent in The Proposal. Each Odd Jobs retry earns more on top.
+- **Money.** Earned in Odd Jobs and spent in The Proposal. Each heart buys one night of three hustles, and a refresh resumes the night.
 
 ## How the finale works
 
@@ -32,7 +32,7 @@ The player completes five tasks in order. Each task's game score is its **skill*
 | Buy a bouquet | Dress to Impress |
 | Buy a ring | Odd Jobs |
 | Book a dinner reservation | Hold It In |
-| Rally your friends | Do Not Disturb |
+| Rally your friends | Late-Night TikTok |
 | Pick and book the proposal spot | The average of all four games |
 
 | Skill | Difficulty | Options unlocked | Chance it goes wrong |

@@ -9,9 +9,7 @@ export const metadata = {
 export default function DressUpChapterPage() {
   return (
     <ChapterGate slug="dress-up">
-      <main className="dress-up-page">
-        <DressUpGame />
-      </main>
+      <DressUpGame />
     </ChapterGate>
   );
 }

@@ -2,8 +2,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { addHearts } from "@/lib/wallet";
-import { recordStageResult, StageGrade } from "@/lib/gameState";
 import { finishChapter } from "@/lib/progress";
 import { STAGE_3_CONFIG, getInterpolatedValue, getRandomBetween } from "./config";
 import {
@@ -22,6 +20,8 @@ import {
 import GirlfriendGaze, { GazeState, NotLookingSubState } from "./GirlfriendGaze";
 import PhoneFeed from "./PhoneFeed";
 import "./stage3.css";
+
+type StageGrade = "S" | "A" | "B" | "C";
 
 type GamePhase = "INSTRUCTION" | "PLAYING" | "GAG_FAIL" | "RECAP" | "CLEAR";
 
@@ -267,6 +267,13 @@ export default function Stage3Game() {
     loopsRef.current.scheduleGazeCycle = scheduleGazeCycle;
   }, [scheduleNextSpawn, scheduleGazeCycle]);
 
+  // Report the score once the chapter ends. A failed night counts as a score of 0, and
+  // playing again goes through ChapterGate, which charges a heart.
+  useEffect(() => {
+    if (phase === "CLEAR") finishChapter("phone", Math.max(0, 100 - stateRef.current.suspicion));
+    if (phase === "RECAP") finishChapter("phone", 0);
+  }, [phase]);
+
   // Handle SPOTTED penalty (+15 Suspicion when touching/flicking banner while she's looking)
   const handleGrabNotification = useCallback(() => {
     if (stateRef.current.gazeState === "LOOKING") {
@@ -380,31 +387,10 @@ export default function Stage3Game() {
         clearAllTimers();
         setPhase("CLEAR");
         playClearFanfare();
-
-        let grade: StageGrade = "C";
-        if (timesCaught === 0 && timesSpotted === 0) {
-          grade = "S";
-        } else if (suspicion < 40) {
-          grade = "A";
-        } else if (suspicion < 70) {
-          grade = "B";
-        }
-
-        const heartsReward = STAGE_3_CONFIG.heartsReward[grade];
-        addHearts(heartsReward);
-        finishChapter("phone", heartsReward);
-
-        recordStageResult("stage-3", {
-          grade,
-          suspicion,
-          timesCaught,
-          timesSpotted,
-          clearedAt: Date.now(),
-        });
       }, 0);
       return () => clearTimeout(clearTimer);
     }
-  }, [phase, timeLeft, suspicion, timesCaught, timesSpotted, clearAllTimers]);
+  }, [phase, timeLeft, suspicion, clearAllTimers]);
 
   const toggleMute = () => {
     const next = !isAudioMuted;
@@ -412,17 +398,11 @@ export default function Stage3Game() {
     setMuted(next);
   };
 
-  const calculateCurrentGrade = (): { grade: StageGrade; hearts: number } => {
-    if (timesCaught === 0 && timesSpotted === 0) {
-      return { grade: "S", hearts: STAGE_3_CONFIG.heartsReward.S };
-    }
-    if (suspicion < 40) {
-      return { grade: "A", hearts: STAGE_3_CONFIG.heartsReward.A };
-    }
-    if (suspicion < 70) {
-      return { grade: "B", hearts: STAGE_3_CONFIG.heartsReward.B };
-    }
-    return { grade: "C", hearts: STAGE_3_CONFIG.heartsReward.C };
+  const calculateCurrentGrade = (): { grade: StageGrade } => {
+    if (timesCaught === 0 && timesSpotted === 0) return { grade: "S" };
+    if (suspicion < 40) return { grade: "A" };
+    if (suspicion < 70) return { grade: "B" };
+    return { grade: "C" };
   };
 
   const currentResult = calculateCurrentGrade();
@@ -499,14 +479,16 @@ export default function Stage3Game() {
           >
             {isAudioMuted ? "🔇" : "🔉"}
           </button>
-          <button
-            type="button"
-            className="hud-btn dev-btn-toggle window"
-            onClick={() => setShowDevControls(!showDevControls)}
-            title="Toggle Dev Cheats"
-          >
-            🛠️ Dev
-          </button>
+          {process.env.NODE_ENV === "development" && (
+            <button
+              type="button"
+              className="hud-btn dev-btn-toggle window"
+              onClick={() => setShowDevControls(!showDevControls)}
+              title="Toggle Dev Cheats"
+            >
+              🛠️ Dev
+            </button>
+          )}
         </div>
       </header>
 
@@ -606,7 +588,7 @@ export default function Stage3Game() {
       {phase === "INSTRUCTION" && (
         <div className="stage3-modal-backdrop">
           <div className="instruction-card window">
-            <h2 className="instruction-chapter">STAGE 3: LATE-NIGHT TIKTOK</h2>
+            <h2 className="instruction-chapter">LATE-NIGHT TIKTOK</h2>
             <div className="instruction-hero-text">
               <p className="instruction-main-rule">
                 GRAB THE NOTIFICATION AND FLICK IT UP.
@@ -622,7 +604,7 @@ export default function Stage3Game() {
                 <span className="demo-flick-arrow">⬆️</span>
               </div>
               <p className="demo-subtext">
-                Flick upward quickly using your mouse or trackpad swipe.
+                Flick upward quickly with your mouse, trackpad, or finger.
               </p>
             </div>
 
@@ -675,7 +657,7 @@ export default function Stage3Game() {
           <div className="recap-card window">
             <h2 className="page-title">CAUGHT 3 TIMES!</h2>
             <p className="recap-intro">
-              She caught you red-handed and went through your phone. Let&apos;s recap the strategy:
+              She caught you red-handed and went through your phone. You can try again from the arcade for 1 heart. Let&apos;s recap the strategy:
             </p>
 
             <div className="recap-tips-list">
@@ -690,7 +672,7 @@ export default function Stage3Game() {
                 <span className="tip-num">2</span>
                 <div>
                   <strong>Flick Fast and Upward</strong>
-                  <p>Short, quick upward swipes work best on both trackpads and mice.</p>
+                  <p>Short, quick upward swipes work best on trackpads, mice, and touchscreens.</p>
                 </div>
               </div>
               <div className="recap-tip window">
@@ -703,16 +685,6 @@ export default function Stage3Game() {
             </div>
 
             <div className="recap-actions">
-              <button
-                type="button"
-                className="vn-choice retry-btn"
-                onClick={() => {
-                  resetStageState(false);
-                  setPhase("INSTRUCTION");
-                }}
-              >
-                Try Again (3 Tries)
-              </button>
               <Link href="/" className="vn-choice back-btn">
                 Return to Arcade Hub
               </Link>
@@ -731,7 +703,7 @@ export default function Stage3Game() {
               </span>
             </div>
 
-            <h2 className="page-title">STAGE 3 CLEARED!</h2>
+            <h2 className="page-title">YOU SURVIVED THE NIGHT!</h2>
             <p className="results-girlfriend-quote">
               &ldquo;That was so funny! My eyes are getting heavy... let&apos;s go to sleep. Goodnight~ ❤️&rdquo;
             </p>
@@ -749,10 +721,6 @@ export default function Stage3Game() {
                 <span className="stat-label">TIMES SPOTTED</span>
                 <span className="stat-value">{timesSpotted}</span>
               </div>
-              <div className="stat-box window stat-hearts">
-                <span className="stat-label">HEARTS EARNED</span>
-                <span className="stat-value heart-bonus">+{currentResult.hearts} ♥</span>
-              </div>
             </div>
 
             <div className="results-grading-legend window">
@@ -763,16 +731,6 @@ export default function Stage3Game() {
             </div>
 
             <div className="results-actions">
-              <button
-                type="button"
-                className="vn-choice"
-                onClick={() => {
-                  resetStageState(false);
-                  setPhase("INSTRUCTION");
-                }}
-              >
-                Replay Stage 3
-              </button>
               <Link href="/" className="vn-choice">
                 Back to Arcade Hub
               </Link>

@@ -55,7 +55,7 @@ export default function Hub() {
     };
   }
 
-  let name = "???";
+  let name = "Miss Oishii";
   let message = line;
   if (preview) {
     name = `Chapter ${chapters.indexOf(preview) + 1}`;
@@ -80,7 +80,7 @@ export default function Hub() {
       />
       <Image
         src={flustered ? "/hub/host-blush.png" : "/hub/host.png"}
-        alt={`A girl with long pink hair and a sailor uniform ${flustered ? "blushes" : "smiles"} at you.`}
+        alt={`Miss Oishii, a strawberry-headed woman in a blue shirt and jeans, ${flustered ? "blushes" : "smiles"} at you.`}
         width={128}
         height={170}
         unoptimized

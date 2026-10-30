@@ -27,14 +27,6 @@ export const STAGE_3_CONFIG = {
   // Penalties
   caughtPenalty: 40,
   spottedPenalty: 15,
-
-  // Hearts reward by grade
-  heartsReward: {
-    S: 30,
-    A: 20,
-    B: 10,
-    C: 5,
-  },
 } as const;
 
 // Helper to interpolate linearly based on game progress (0 = start, 1 = end)
