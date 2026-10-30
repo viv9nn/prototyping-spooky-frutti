@@ -48,6 +48,11 @@ export default function PixelAvatar({
           shapeRendering: "crispEdges",
           imageRendering: "pixelated",
           overflow: "visible",
+          height: "350px",
+          maxHeight: "360px",
+          width: "auto",
+          maxWidth: "100%",
+          display: "block",
         }}
       >
         <defs>

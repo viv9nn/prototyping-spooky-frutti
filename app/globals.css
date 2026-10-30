@@ -383,6 +383,8 @@ main {
   .vn-next {
     animation: none;
   }
+}
+
 /* ==========================================================================
    Chapter 1: Dapper Honeycrisp Dress-Up Game Styles
    ========================================================================== */
@@ -486,6 +488,7 @@ main {
 .dress-up-arena {
   position: relative;
   width: 100%;
+  aspect-ratio: auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
