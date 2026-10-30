@@ -61,25 +61,25 @@ a:focus-visible {
 }
 
 .arcade-name {
+  margin-right: auto;
   color: var(--yellow);
   font-size: 24px;
   text-decoration: none;
   text-shadow: 2px 2px 0 var(--ink);
 }
 
-.site-header nav {
-  flex: 1;
-}
-
-.site-header nav a {
-  color: var(--white);
-  white-space: nowrap;
+.heart-count,
+.money-count {
+  font-size: 20px;
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
 .heart-count {
   color: var(--pink);
-  font-size: 20px;
-  text-shadow: 2px 2px 0 var(--ink);
+}
+
+.money-count {
+  color: var(--yellow);
 }
 
 /* Page content */
@@ -91,7 +91,7 @@ main {
 /* Placeholder pages */
 
 .placeholder {
-  max-width: 640px;
+  max-width: 720px;
   margin: 48px auto;
   padding: 40px 24px;
   text-align: center;
@@ -106,6 +106,7 @@ main {
 
 .coming-soon {
   margin: 8px 0 32px;
+  color: var(--yellow);
   font-size: 20px;
 }
 
@@ -133,7 +134,7 @@ main {
 }
 
 .vn-character {
-  left: 6%;
+  left: 3%;
   bottom: -12%; /* crops her below the message window */
   width: 46%;
   height: auto;
@@ -141,11 +142,11 @@ main {
 
 .vn-choices {
   position: absolute;
-  top: 7%;
-  right: 5%;
-  width: 40%;
-  max-height: 58%;
-  padding: 16px;
+  top: 4%;
+  right: 3%;
+  width: 46%;
+  max-height: 66%;
+  padding: 8px 16px 16px;
   overflow-y: auto;
 }
 
@@ -158,13 +159,35 @@ main {
   text-shadow: 2px 2px 0 var(--ink);
 }
 
-.vn-choices ul {
-  display: grid;
+.vn-affection {
+  display: flex;
+  align-items: center;
   gap: 8px;
+  margin-bottom: 8px;
+  color: var(--pink);
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+.vn-affection-bar {
+  flex: 1;
+  height: 16px;
+  background: var(--ink);
+  border: 2px solid var(--white);
+}
+
+.vn-affection-fill {
+  height: 100%;
+  background: repeating-linear-gradient(90deg, var(--pink-deep) 0 8px, var(--pink) 8px 16px);
+}
+
+.vn-choices ol {
+  display: grid;
+  gap: 4px;
   list-style: none;
 }
 
 .vn-choice {
+  position: relative;
   display: block;
   padding: 8px 16px 8px 32px;
   color: var(--ink);
@@ -178,7 +201,6 @@ main {
 
 .vn-choice:hover,
 .vn-choice:focus-visible {
-  position: relative;
   background: #ffd6e8;
   box-shadow: inset 0 -4px 0 var(--pink);
 }
@@ -191,17 +213,85 @@ main {
   color: var(--pink-deep);
 }
 
+.vn-new-game {
+  position: absolute;
+  right: 40px;
+  bottom: 12px;
+  padding: 2px 16px 6px 32px;
+  font: inherit;
+  text-shadow: none;
+  cursor: pointer;
+}
+
+.vn-chapter {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 8px 6px;
+  font-size: 16px;
+}
+
+.vn-chapter img {
+  width: 24px;
+  height: 24px;
+  image-rendering: pixelated;
+}
+
+/* Chapter rows use their icon instead of the heart cursor. */
+.vn-chapter:hover::before,
+.vn-chapter:focus-visible::before {
+  content: none;
+}
+
+.vn-chapter-status {
+  font-size: 14px;
+  color: #5a5288;
+}
+
+.vn-rating {
+  color: var(--pink-deep);
+}
+
+.vn-rating-empty {
+  color: #d8d4f0;
+}
+
+.vn-chapter-finale {
+  background: #fff3b8;
+  box-shadow: inset 0 -4px 0 #f2c94c;
+}
+
+.vn-chapter-locked {
+  color: #5a5288;
+  background: #b9b4d8;
+  box-shadow: inset 0 -4px 0 #9a94c0;
+  cursor: not-allowed;
+}
+
+.vn-chapter-locked img {
+  filter: grayscale(1);
+}
+
+.vn-chapter-locked:hover,
+.vn-chapter-locked:focus-visible {
+  background: #b9b4d8;
+  box-shadow: inset 0 -4px 0 #9a94c0;
+}
+
 .placeholder .vn-choice {
   display: inline-block;
   padding: 8px 32px;
+  font: inherit;
+  cursor: pointer;
 }
 
 .vn-message {
   position: absolute;
   right: 3%;
-  bottom: 5%;
+  bottom: 4%;
   left: 3%;
-  min-height: 24%;
+  min-height: 22%;
   padding: 24px 32px 16px;
   font-size: 20px;
   text-shadow: 2px 2px 0 var(--ink);
@@ -233,7 +323,120 @@ main {
   }
 }
 
-/* Side Hustle: the game runs in a frame on the same origin, so it shares the heart wallet. */
+/* Small or short screens: the scene sits on top and the windows flow beneath it. */
+
+@media (max-width: 900px), (max-height: 600px) {
+  main {
+    padding: 16px;
+  }
+
+  .vn-stage {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    width: min(100%, 640px);
+    aspect-ratio: auto;
+    overflow: visible;
+    border: 0;
+  }
+
+  .vn-background {
+    position: relative;
+    inset: auto;
+    height: auto;
+    border: 4px solid var(--ink);
+  }
+
+  .vn-character {
+    top: 0;
+    bottom: auto;
+    left: 3%;
+    width: 42%;
+  }
+
+  .vn-message,
+  .vn-choices {
+    position: relative;
+    inset: auto;
+    width: auto;
+    max-height: none;
+    margin: 8px;
+  }
+
+  .vn-message {
+    order: 1;
+    padding-top: 28px;
+    font-size: 18px;
+  }
+
+  .vn-new-game {
+    position: static;
+    margin-top: 16px;
+  }
+
+  .vn-choices {
+    order: 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vn-next {
+    animation: none;
+  }
+}
+
+/* Test panel (development only) */
+
+.dev-panel ul {
+  margin: 16px 0;
+  list-style: none;
+}
+
+.dev-panel li {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dev-panel li span {
+  flex: 1;
+  text-align: left;
+}
+
+.dev-panel button {
+  padding: 0 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.gate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.dev-steps {
+  margin: 16px 0;
+  list-style: none;
+  text-align: left;
+}
+
+.dev-steps li {
+  margin-bottom: 8px;
+}
+
+.dev-steps button {
+  margin: 2px 4px 2px 0;
+}
+
+.dev-panel button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Odd Jobs: the game runs in a frame and reports earnings and its score to the wallet. */
 
 .game-page {
   display: grid;
@@ -254,62 +457,5 @@ main {
   .game-frame {
     aspect-ratio: auto;
     height: calc(100vh - 200px);
-  }
-}
-
-/* Small screens: the scene sits on top and the windows flow beneath it. */
-
-@media (max-width: 800px) {
-  main {
-    padding: 16px;
-  }
-
-  .vn-stage {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    width: 100%;
-    aspect-ratio: auto;
-    overflow: visible;
-    border: 0;
-  }
-
-  .vn-background {
-    position: relative;
-    inset: auto;
-    height: auto;
-    border: 4px solid var(--ink);
-  }
-
-  .vn-character {
-    top: 0;
-    bottom: auto;
-    left: 6%;
-    width: 42%;
-  }
-
-  .vn-message,
-  .vn-choices {
-    position: relative;
-    inset: auto;
-    width: auto;
-    max-height: none;
-    margin: 8px;
-  }
-
-  .vn-message {
-    order: 1;
-    padding-top: 28px;
-    font-size: 18px;
-  }
-
-  .vn-choices {
-    order: 2;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .vn-next {
-    animation: none;
   }
 }

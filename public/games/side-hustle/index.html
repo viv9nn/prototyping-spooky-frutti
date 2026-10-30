@@ -1,7 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Spooky Frutti Side Hustle</title>
+<title>Odd Jobs</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 /* Layout: one 320x180 screen in the Spooky Frutti Arcade palette, touch pad below it on phones. */
@@ -70,7 +70,7 @@ body {
 </style>
 
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
-<canvas id="screen" width="320" height="180" tabindex="0" aria-label="Spooky Frutti Side Hustle game screen"></canvas>
+<canvas id="screen" width="320" height="180" tabindex="0" aria-label="Odd Jobs game screen"></canvas>
 <p id="help"><kbd>Arrows</kbd> or <kbd>WASD</kbd> move &nbsp; <kbd>Space</kbd> act &nbsp; <kbd>P</kbd> pause &nbsp; <kbd>M</kbd> mute</p>
 <div id="pad" aria-label="Touch controls">
   <div id="dpad">
@@ -106,7 +106,7 @@ const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.r
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = a => a[Math.floor(Math.random() * a.length)];
-const money = n => '\u2665' + Math.max(0, Math.round(n)).toLocaleString('en-US');
+const money = n => '$' + Math.max(0, Math.round(n)).toLocaleString('en-US');
 function seeded(s) { return () => (s = (s * 16807) % 2147483647) / 2147483647; }
 function layer(draw, w = W, h = H) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -250,28 +250,31 @@ function schedule() {
 const paused = () => scene && scene.isPaused && scene.isPaused();
 
 /* ---------------------------------------------------------------- save */
-/* Hearts are the site's one currency. This reads and writes the same localStorage
-   key as lib/wallet.ts, so the site's header updates through its storage listener. */
-const HEARTS_KEY = 'arcade-hearts';
-let hearts = null;
-function getHearts() {
-  if (hearts === null) {
+/* Money is shared with the site. On the site, changes go to lib/wallet.ts through the
+   frame's parent; the site's storage events bring the saved value back here. */
+const MONEY_KEY = 'arcade-money';
+let cash = null;
+const toSite = msg => parent.postMessage(msg, location.origin);
+function getMoney() {
+  if (cash === null) {
     let saved = 0;
-    try { saved = Number(localStorage.getItem(HEARTS_KEY)); } catch (e) {}
-    hearts = Number.isSafeInteger(saved) && saved >= 0 ? saved : 0;
+    try { saved = Number(localStorage.getItem(MONEY_KEY)); } catch (e) {}
+    cash = Number.isSafeInteger(saved) && saved >= 0 ? saved : 0;
   }
-  return hearts;
+  return cash;
 }
-function setHearts(n) {
-  hearts = Math.max(0, Math.round(n));
-  try { localStorage.setItem(HEARTS_KEY, String(hearts)); } catch (e) {}
+function setMoney(n) {
+  const next = Math.max(0, Math.round(n)), amount = next - getMoney();
+  cash = next;
+  if (embedded) { if (amount) toSite({ type: 'money', amount }); return; }
+  try { localStorage.setItem(MONEY_KEY, String(next)); } catch (e) {}
 }
-function addHearts(n) { if (n > 0) setHearts(getHearts() + Math.round(n)); }
-function spendHearts(n) { if (n > getHearts()) return false; if (n > 0) setHearts(getHearts() - n); return true; }
-addEventListener('storage', e => { if (e.key === HEARTS_KEY || e.key === null) hearts = null; });
+function addMoney(n) { if (n > 0) setMoney(getMoney() + Math.round(n)); }
+function spendMoney(n) { if (n > getMoney()) return false; if (n > 0) setMoney(getMoney() - n); return true; }
+addEventListener('storage', e => { if (e.key === MONEY_KEY || e.key === null) cash = null; });
 
 const SAVE_KEY = 'spooky-frutti-v2';
-let save = { rep: {}, best: {}, busts: 0, won: false };
+let save = { rep: {}, best: {}, busts: 0 };
 try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s) save = Object.assign(save, s); } catch (e) {}
 function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
 
@@ -298,8 +301,8 @@ function fxDraw() {
 function sprite(rows, pal) {
   return layer(r => rows.forEach((row, y) => { for (let x = 0; x < row.length; x++) { const c = pal[row[x]]; if (c) r(x, y, 1, 1, c); } }), rows[0].length, rows.length);
 }
-const OUT = '#1a0810';
-const HEAD_PAL = { K: OUT, r: '#a81c38', d: '#6a0a24', l: '#cf3650', h: '#f4a0a4', S: '#ffffff', E: '#120408', n: '#4a5a1a', m: '#360414', B: '#360414', g: '#86c83e', G: '#408c28' };
+const OUT = '#3a1f3f';
+const HEAD_PAL = { K: OUT, r: '#d8304a', d: '#a81c3c', l: '#ff8a9a', h: '#ffe4e8', S: '#ffffff', E: '#240f2c', n: '#5c4028', m: OUT, B: '#78102c', g: '#7fc84a', G: '#3e8c34' };
 const HEAD = sprite([
   '......gGg..n......',
   '...KgGGGgKnKKK....',
@@ -337,8 +340,8 @@ function frutti(x, y, o = {}) {
   const LOOK = {
     deal: ['#2f3346', '#23242f'], fraud: ['#22304f', '#1a2640'], heist: ['#e8e8f0', '#15151f'],
     pimp: ['#6d2bb0', '#4c1a85'], gamble: ['#16161f', '#16161f']
-  }[fit] || ['#fff8e8', '#e8cf94'];
-  const [top, legs] = LOOK, skin = '#a81c38';
+  }[fit] || ['#f8f6ff', '#e8cf94'];
+  const [top, legs] = LOOK, skin = '#d8304a';
   // canvas shoes
   R(x - 7, y - 3 - lL, 6, 3, OUT); R(x - 6, y - 3 - lL, 4, 2, '#fff8e8');
   R(x + 1, y - 3 - lR, 6, 3, OUT); R(x + 2, y - 3 - lR, 4, 2, '#fff8e8');
@@ -347,7 +350,7 @@ function frutti(x, y, o = {}) {
   // shirt, rolled sleeves, bare forearms
   R(x - 6, y - 17, 12, 7, top);
   R(x - 8, y - 17, 2, 3, top); R(x + 6, y - 17, 2, 3, top);
-  R(x - 8, y - 14, 2, 4, skin); R(x + 6, y - 14, 2, 4, skin); R(x - 8, y - 10, 2, 2, '#6a0a24'); R(x + 6, y - 10, 2, 2, '#6a0a24');
+  R(x - 8, y - 14, 2, 4, skin); R(x + 6, y - 14, 2, 4, skin); R(x - 8, y - 10, 2, 2, '#a81c3c'); R(x + 6, y - 10, 2, 2, '#a81c3c');
   if (!fit) { R(x, y - 15, 1, 5, '#e8dec6'); R(x - 2, y - 16, 4, 1, skin); }
   if (fit === 'dogs') { R(x, y - 15, 1, 1, '#e8dec6'); R(x - 5, y - 15, 10, 8, '#ffffff'); R(x - 5, y - 15, 10, 1, '#d8304a'); }
   if (fit === 'deal') { R(x - 2, y - 13, 4, 2, '#454b66'); }
@@ -409,45 +412,47 @@ function npc(kind, x, y, t = 0, o = {}) {
   if (o.mad) { R(x - 5, y - 13, 4, 1, '#120810'); R(x + 1, y - 13, 4, 1, '#120810'); }
 }
 
-/* the full-body portrait: pixelated from the character art */
-const PORTRAIT = {"w": 39, "h": 132, "colors": ["#f4a0a4", "#cf3650", "#a81c38", "#820f2a", "#5a0820", "#360414", "#120408", "#ffffff", "#86c83e", "#408c28", "#1f5418", "#fff8e8", "#e8dec6", "#b4a890", "#ecd498", "#c8a868", "#927646"], "rows": ["..................gag..................", ".................gjbg..................", ".......gggggggggggidg..................", "......gjjjjjjjjjkkdeg..................", "....ggiiiijkjjiaeeeg...................", "...gkiiijjjjjjjeeeeggggggggggg.........", "...giiiijjjjjjeedeecccccbaaaabgg.......", "..giiiiijjjjbbcbbbeabbbaaaaaaabcg......", ".gjiiiijjjjjedbbabbbbaaaaaaaaabccg.....", ".giiiijkjidgecbbbbbbaaabbbccbccddcg....", "gjiiijjjiefcbbbbbbbbbbbccdddddeeeedg...", "giijjjijgebbbbbbbbbbbcccdddeeeeffeedg..", "gijjjjfgebbbaaaaabbbbcccddeeeefffffeg..", "kijbeggdbbaaaaaaaaabbcccddeeeffffffedg.", "jjceggebbbaaaaaaaaabbccdddeefffffgffeg.", "jkdegfcbbbaaaaaaaabbbccdddeeffffgggfedg", "ggcefdcbbaaaaabbbbbbbbccddeefffggggfddg", ".gbddcbbbaaabbcbbbbcbbccddeefffggggeccg", ".gbcccbbbabccddccdddddeefffffffggggebbg", "gbabcfbbbcddefedefffffffffffffgggggeaac", "gaabbfffddeefgefefffffffffffffgggggeaab", "gaabbeffffffffffdeggffeeeffggggggggeaab", "gaabdfffffffffffefgfdcdeffgggggggggeaab", "gaabcdcbbbcdeeddefgfeeeeeeeegfgggggeaab", "gaabcccccdggffdcdfggfhhghghhffgggggfaab", "gaabcdaeeeeeeecbcefffhhggghhffgggggeaab", "gaabccfhhghghhfbbdedceeeeeeeffgggggeaab", ".gaaccfhhggghhfbbddddeffggfffggggggeaab", ".gaaccceeeeeeebbcdddddeeeffffggggggeaag", ".gaaccccddbbbbcccddeeeeeefffgggggggdaag", ".gaabccccbbbccccdddeeeffffffgggggggdaag", "..gaacccccccccccdddeeffffffggggggggbabg", "..gaacdcccccccccdddefffffffggggggggbag.", "...gabddddddddcccddeffffffggggggggfbbg.", "...gbaddddddddddeefggggffgggggggggecg..", "....gbcdddddeefeddeffgggfggggggggfedg..", "....gccddddeeffffffffffggggggggggfeg...", ".....gddeeeeeffffffggggfggggggggfedg...", "......gddeeeeeffffffgfggggggggggfeg....", ".......gdeeefffffffffggggggggggffdg....", ".......gddeefffffffffggggggggggfeg.....", "........gdeefffffffffffggggggffeg......", ".........gdeeeffffffffffffffgffg.......", "..........gddeeeeeefffffffggfgg........", "...........ggdccdeffggggggfbg..........", ".............gcbdgggggggggeccgg........", ".............gnmngggggggfdnggnngg......", "...........ggmlmnggffggedenggnnnng.....", "..........gmlllnnaffffedfenngnnnnng....", ".........glllllmlaaeedcebanngggggng....", ".........glllllllaaddbcaaanmmg..gng....", "........gmlllllllaabbaaaaammmg...g.....", "........gmlllllllaaaaaaaaammg..........", "........gmllllllllllmlllllmmg.g........", "........gmlllllllllmllllllmmggng.......", "........glmmlllllllmlllllmmnnnng.......", "........gmlmllllllllllllmmmnnnnng......", "........gmlmmlllmmmlllmmmmnnnnnng......", "........gllmmllmmmmlmmmmmmnnnnnng......", "........gllmmmmmmmmlmmmmnmnnnnnng......", ".......gmlmmmmmmmmlmmmmmnmnnnnnng......", ".......gmlmmnmmmlllmmmmmnmnnnnnng......", ".......gmlmmnmmllllllmmmnnnnnnnng......", ".......gllmmnmmllmmlmmlmnnnnnnng.......", "......gmlmmmmmlllmmlmmmmnnnnnng........", "......gllmmmnmllmmmlmmmmnnnnnng........", "......gllllmnmlmmmllmmmnnnnnnng....gg..", "......gnnnmmmmlllllllmmmnnnnnng..ggnng.", ".....gbbbefenmmmlllllmmmnnnnnng.gedbdfg", ".....gbccdefnllmmmllmnnnnnnnnng.gddcdfg", ".....gbccefenmllllmmmmmmmmmnnng.gddcdfg", ".....gbcdefdgnnmmmmmmmmmnnnnnng.gcdddfg", ".....gccdffggnnnnnnmnnnnnnnnnng..gdddfg", ".....gccefdggpopppppqqqqqqqqqqg..gdddfg", "....gbbcffggqooqppppppqqqqqqqqg..gdddfg", "....gbbcfdggooopoppppqqqqqqqppqg.gcddfg", "....gbbdeg.gooooooppqppppppppppg..gcdgg", "....gbbccg.gooooppppqppppppppqqg.gccdgg", "....gbccbg.gooooopppqpppppppqqqg.gccdgg", "....gbcccg.goooooooppppppppqqqqggbcdeg.", "....gbbbdg.gooooppppppppppqqqqqqgcbdfg.", "...gbccceg.gooppppppppppppppqqqqqcbefg.", "...gbdfeeg.gooppppqqqppppppqqqqqqeedfg.", "...gcefddg.gooooppqqqqqppppqqqqqqfddgg.", "...gdefdeg.gooppqqqqqqpppppqqqqqqeceg..", "...gdefeedggopppqqqqqqqqpppqqqqqqcdfg..", "....geeeedgaoppppqqqqqpppppqqqqqqbeg...", "....gefeecgaoppqqqqqqqpppppqqqqqqdfg...", ".....gdfedggoppqqqqqqqpppppqqqqqqfg....", "......ggeg.goppqqqqqqqqppppqqqqqqfg....", "........g..goppqqqqqqggppppqqqqqgg.....", "...........goppqqqqqqggppppqqqqqg......", "...........gpppqqqqqqggppppqqqqqg......", "...........gpppqqqqqqggppppqqqqqg......", "...........gpppqqqqqqggqpppqqqqqg......", "...........gpppqqqqqqg.gpppqqqqqg......", "...........gpppqqqqqg..gpppqqqqqg......", "...........gpppqqqqqg..gpppqqqqqg......", "...........gpppqqqqqg..gpppqqqqqg......", "...........gppqqqqqqg..gppppqqqqg......", "...........gppqqqqqqg..gppppqqqqg......", "...........gppqqqqqqg...gpppqqqqg......", "............gpqqqqqqg...gpppqqqqg......", "............gpqqqqqqg...gpppqqqqg......", "............gpqqqqqqg...gpppqqqqg......", "............gpqqqqqqg...gppqqqqqpg.....", "............gpqqqqqqg....gpqqqqqqg.....", "............gpqqqqqqg....gpqpqqqqg.....", "............gpqqqqqqg....gpqpqqqqg.....", "............gpqqqqqqg....gpppqqqqg.....", "............gpqqqqqqg....goppqqqqg.....", "............goqqqqqqg....goppqqqqpg....", "............goqqqqqqg.....gpppqqqpg....", "............goqqqqqqg.....gpppqqqpg....", "............gpqqqqqqg....gopppqqqpg....", "............gpqqqqqqg....gopppqqqqg....", "............gpqqqqqqg....gopppqqqqg....", "............gpppppqqg....gopppqqqqg....", "............gpqppqqpg....goppppqqqg....", "............gpqqqqqpg....gooooqqqqg....", "...........goopppqqpg.....gppqqqqqg....", "...........gopppqqqpg.....gppppqqqg....", "...........goppqqqqpg.....gppppqqqg....", "..........ggmnnngggng.....gnnnnnnng....", ".........gmmmmnnnnnng......gnnnnnng....", ".......ggmmmmnnnnnnng......gnnmnnng....", "......gmmlmmmnnnnnnng......gmmmnnng....", ".....gmllmmmnnnngggg........gmmmnng....", "....gmmmnnnnnnngggg........gmmmmmmmg...", "....gmmmnnnnnnggg..........gmmmmmmmg...", ".....ggggggggg.............gnmnnnnnng..", "............................gmmnnnng..."]};
-const portraitImg = layer(r => {
-  PORTRAIT.rows.forEach((row, y) => { for (let x = 0; x < row.length; x++) if (row[x] !== '.') r(x, y, 1, 1, PORTRAIT.colors[row.charCodeAt(x) - 97]); });
-}, PORTRAIT.w, PORTRAIT.h);
-function portrait(x, y) { g.drawImage(portraitImg, x, y); }
+/* the visual-novel bust, drawn to match the host sprite: 128x170, plum outlines, flat shading */
+const BUSTS = {};
+Object.entries({ grump: 'data:image/png;base64,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', smug: 'data:image/png;base64,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', cry: 'data:image/png;base64,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' }).forEach(([mood, src]) => { BUSTS[mood] = new Image(); BUSTS[mood].src = src; });
+function portrait(x, y, mood = 'grump') { if (BUSTS[mood].complete) g.drawImage(BUSTS[mood], x, y); }
 
 /* ---------------------------------------------------------------- hustles */
-const HEART_RATE = .1;  // tunes every payout against what other chapters award
+// One heart buys a night of this many hustles. Earning SCORE_TARGET in a night scores 100.
+const RUNS_PER_NIGHT = 3, SCORE_TARGET = 1000;
+const BUDGET = 1250;  // the most expensive option on every step of the proposal
+// rate tunes what each hustle pays against the prices in lib/proposalPlan.ts
 const HUSTLES = [
-  { id: 'dogs', name: 'HOT DOGS', risk: 1, pay: 1, time: 45, finePct: 0, fineMin: 3, keep: true, buyIn: 0,
+  { id: 'dogs', name: 'HOT DOGS', risk: 1, pay: 1, time: 45, rate: .25, finePct: 0, fineMin: 5, keep: true, buyIn: 0,
     blurb: 'Honest money. Match each order before the line walks off.',
     how: ['ARROW KEYS ADD TOPPINGS', 'MATCH THE ORDER LEFT TO RIGHT', '3 WALK-OFFS AND YOUR PERMIT IS PULLED'],
-    bust: 'Keep your take, lose \u26653.' },
-  { id: 'deal', name: 'DRUG DEALER', risk: 2, pay: 2, time: 50, finePct: .10, fineMin: 20, buyIn: 10,
+    bust: 'Keep your take, pay a $5 fine.' },
+  { id: 'deal', name: 'DRUG DEALER', risk: 2, pay: 2, time: 50, rate: .2, finePct: .10, fineMin: 0, buyIn: 0,
     blurb: 'Grab the goods, hit buyers across town, stay out of sight.',
     how: ['ARROWS MOVE. DUMPSTERS RELOAD YOUR STASH', 'WALK INTO BUYERS TO SELL', 'SHADES = UNDERCOVER. ANY COP TOUCH = BUSTED'],
-    bust: 'Lose stake, take + 10% of your hearts.' },
-  { id: 'pimp', name: 'PIMP', risk: 3, pay: 3, time: 50, finePct: .20, fineMin: 80, buyIn: 50,
+    bust: 'Lose the take + 10% of your money.' },
+  { id: 'pimp', name: 'PIMP', risk: 3, pay: 3, time: 50, rate: .1, finePct: .20, fineMin: 0, buyIn: 0,
     blurb: 'Fur coat, big hat. Run the boulevard and defend your corners.',
     how: ['SPACE: COLLECT FROM CREW, SMACK RIVALS', 'UP AT A DOORWAY WHEN THE COPS ROLL BY', '3 LOST CREW ENDS THE NIGHT. FULL HEAT = BUSTED'],
-    bust: 'Lose stake, take + 20% of your hearts.' },
-  { id: 'heist', name: 'HEIST', risk: 4, pay: 4, time: null, finePct: .35, fineMin: 400, buyIn: 200,
+    bust: 'Lose the take + 20% of your money.' },
+  { id: 'heist', name: 'HEIST', risk: 4, pay: 4, time: null, rate: .05, finePct: .35, fineMin: 0, buyIn: 0,
     blurb: 'Every safe doubles the score and the sirens. Then you still have to drive.',
     how: ['SPACE IN THE GREEN CRACKS A TUMBLER', 'AFTER EACH SAFE: GO DEEPER OR RUN', 'LEFT / RIGHT TO DODGE. 3 CRASHES = BUSTED'],
-    bust: 'Lose stake, take + 35% of your hearts.' },
-  { id: 'fraud', name: 'BANK FRAUD', risk: 5, pay: 5, time: null, finePct: .60, fineMin: 1500, buyIn: 1000,
+    bust: 'Lose the take + 35% of your money.' },
+  { id: 'fraud', name: 'BANK FRAUD', risk: 5, pay: 5, time: null, rate: .02, finePct: .60, fineMin: 0, buyIn: 0,
     blurb: 'Checks grow fast and so does the trace. Know when to vanish.',
     how: ['RIGHT: CASH IT IF IT MATCHES THE TARGET CARD', 'LEFT: SHRED FAKES (NAME, COLOR, SIGNATURE)', 'DOWN: CASH OUT. FULL TRACE = FEDS'],
-    bust: 'Lose stake, take + 60% of your hearts.' },
-  { id: 'gamble', name: 'GAMBLING', risk: 6, pay: 6, time: null, finePct: 0, fineMin: 0, buyIn: 1, ownStake: true,
+    bust: 'Lose the take + 60% of your money.' },
+  { id: 'gamble', name: 'GAMBLING', risk: 6, pay: 6, time: null, rate: 1, finePct: 0, fineMin: 0, buyIn: 1, ownStake: true,
     blurb: 'One wheel. Bet a slice or go all in, then let it ride as long as you dare.',
     how: ['LEFT / RIGHT: SET YOUR BET. UP / DOWN: PICK A COLOR', 'RED OR BLACK PAYS X2. GREEN PAYS X14', 'ALL IN ON GREEN PAYS X30. AFTER A WIN: RIDE OR CASH OUT'],
     bust: 'Lose your whole bet. All in means all of it.' }
 ];
-const GOAL = 100000;
-const RANKS = [[0, 'WINDFALL'], [100, 'SMALL FRY'], [1000, 'BAD APPLE'], [10000, 'BIG APPLE'], [50000, 'CORE BOSS'], [GOAL, 'RETIRED LEGEND']];
+const RANKS = [[0, 'BROKE'], [100, 'SMALL FRY'], [400, 'BAD APPLE'], [800, 'BIG APPLE'], [BUDGET, 'READY TO PROPOSE']];
 const rankOf = b => RANKS.filter(r => b >= r[0]).pop()[1];
-const canAfford = h => getHearts() >= h.buyIn;
+const canAfford = h => getMoney() >= h.buyIn;
+let night = null;
+function startNight() { night = { run: 0, start: getMoney() }; }
 
 /* --- hot dogs ------------------------------------------------------ */
 const TOPS = {
@@ -740,7 +745,7 @@ function gameDeal(run) {
         npc(b.kind, bx, by, 0, { shades: b.uc, cap: false });
         const frac = b.life / b.max;
         R(bx - 6, by - 21, 12, 2, '#000a'); R(bx - 6, by - 21, 12 * frac, 2, frac < .3 ? '#ff4040' : '#7fe07a');
-        text('\u2665', bx - 2, by - 28, '#ff8fc0', { sh: '#000' });
+        text('$', bx - 1, by - 28, '#7fe07a', { sh: '#000' });
       });
       const me = pos(P);
       {
@@ -882,7 +887,7 @@ function gamePimp(run) {
         npc(c.kind, c.x + shake, 146, 0, { shades: true });
         // earnings meter
         R(c.x - 11, 121, 22, 4, OUT); R(c.x - 10, 122, 20 * c.m, 2, c.m >= 1 ? '#ffe680' : c.m >= .3 ? '#7fe07a' : '#567');
-        if (c.m >= 1) { text('\u2665\u2665\u2665', c.x, 112 - (Math.floor(t * 5) % 2), '#ffe680', { c: 1, sh: '#000' }); R(c.x - 11, 126, 22 * (1 - c.over / 4.5), 1, '#ff4040'); }
+        if (c.m >= 1) { text('$$$', c.x, 112 - (Math.floor(t * 5) % 2), '#ffe680', { c: 1, sh: '#000' }); R(c.x - 11, 126, 22 * (1 - c.over / 4.5), 1, '#ff4040'); }
       });
       rivals.forEach(r => {
         npc('rival', r.x, 148, r.ko ? 0 : r.walk, { hat: '#1e7f42', mad: true });
@@ -1037,7 +1042,7 @@ function gameHeist(run) {
         if (run.heat > .5 && Math.floor(t * 4) % 2) { g.globalAlpha = (run.heat - .4) * .4; R(0, 14, W, 96, '#ff2030'); g.globalAlpha = 1; }
         for (let i = 0; i < LOOT.length; i++) drawSafe(108 + i * 34, 68, i < safe ? 2 : i === safe ? 1 : 0, t + i);
         frutti(58, 110, { outfit: 'heist' });
-        if (safe > 0) { R(68, 96, 13, 14, OUT); R(69, 97, 11, 12, '#b89a60'); text('\u2665', 72, 100, '#3a2a10'); }
+        if (safe > 0) { R(68, 96, 13, 14, OUT); R(69, 97, 11, 12, '#b89a60'); text('$', 73, 100, '#3a2a10'); }
         // panel
         R(0, 118, W, 62, '#10121c'); R(0, 118, W, 1, '#59647f');
         if (phase === 'crack') {
@@ -1071,7 +1076,7 @@ function gameHeist(run) {
         }
         R(70, 0, 180, H, '#33333f'); R(70, 0, 3, H, '#e8e8e8'); R(247, 0, 3, H, '#e8e8e8');
         for (let l = 1; l < 4; l++) for (let y = -30 + scroll % 30; y < H; y += 30) R(72 + l * 44, y, 2, 14, '#c8c8c8');
-        cash.forEach(c => { R(LX(c.lane) - 5, c.y - 5, 10, 10, OUT); R(LX(c.lane) - 4, c.y - 4, 8, 8, '#2f7a4a'); text('\u2665', LX(c.lane) - 2, c.y - 2, '#ffe680'); });
+        cash.forEach(c => { R(LX(c.lane) - 5, c.y - 5, 10, 10, OUT); R(LX(c.lane) - 4, c.y - 4, 8, 8, '#2f7a4a'); text('$', LX(c.lane) - 1, c.y - 2, '#ffe680'); });
         traf.forEach(c => { if (c.cop) drawCar(LX(c.lane), c.y, '#e8e8f0', '#27389a', { up: true, cop: true }); else drawCar(LX(c.lane), c.y, c.c, '#00000055'); });
         warns.forEach(w => { if (Math.floor(w.t * 12) % 2) { R(LX(w.lane) - 6, 164, 12, 12, '#ff2030'); text('!', LX(w.lane), 167, '#fff'); } });
         if (!(inv > 0 && Math.floor(t * 14) % 2)) {
@@ -1224,7 +1229,7 @@ const CASINO_BG = layer(r => {
 function gameGamble(run) {
   const BETS = [{ l: '25%', f: .25 }, { l: '50%', f: .5 }, { l: 'ALL IN', f: 1 }], CALLS = ['red', 'black', 'green'];
   let phase = 'bet', bet = 2, call = 0, pos = 0, from = 0, to = 0, st = 0, T = 2.4, landed = null, pot = 0, stake = 0, allIn = false, t = 0, lastPocket = 0, rides = 0;
-  const stakeFor = i => Math.max(1, i === 2 ? getHearts() : Math.floor(getHearts() * BETS[i].f));
+  const stakeFor = i => Math.max(1, i === 2 ? getMoney() : Math.floor(getMoney() * BETS[i].f));
   const mult = () => CALLS[call] === 'green' ? (allIn ? 30 : 14) : 2;
   function spin() {
     phase = 'spin'; st = 0; from = pos;
@@ -1243,7 +1248,7 @@ function gameGamble(run) {
         if (hit.down) { call = (call + 1) % 3; sfx('move'); }
         if (hit.a) {
           stake = stakeFor(bet); allIn = bet === 2;
-          if (!spendHearts(stake)) { sfx('bad'); return; }
+          if (!spendMoney(stake)) { sfx('bad'); return; }
           pot = stake; run.stake = stake; spin();
         }
       } else if (phase === 'spin') {
@@ -1317,7 +1322,7 @@ function uiWindow(x, y, w, h) {
 }
 const CHECKER = layer(r => { r(0, 0, W, H, '#231a4c'); for (let y = 0; y < H; y += 8) for (let x = (y / 8 & 1) * 8; x < W; x += 16) r(x, y, 8, 8, '#2a2058'); });
 const ARCADE = new Image();
-ARCADE.src = 'data:image/png;base64,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';
+ARCADE.src = 'data:image/png;base64,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';
 
 function heartRain(n) {
   const b = Array.from({ length: n }, () => ({ x: rand(0, W), y: rand(-H, H), v: rand(14, 34), p: rand(0, 6) }));
@@ -1331,20 +1336,20 @@ function titleScene() {
   return {
     update(dt) {
       t += dt; rain.update(dt);
-      if (hit.a || mouse) { sfx('ok'); go(menuScene()); }
+      if (hit.a || mouse) { sfx('ok'); startNight(); go(menuScene()); }
     },
     draw() {
       if (ARCADE.complete && ARCADE.naturalWidth) g.drawImage(ARCADE, 0, 0); else g.drawImage(CHECKER, 0, 0);
       rain.draw();
-      portrait(258, 44 + (Math.floor(t * 2) % 2));
-      text('SIDE', 12, 12, UI.yellow, { s: 5, sh: UI.ink });
-      text('HUSTLE', 12, 44, UI.yellow, { s: 5, sh: UI.ink });
-      R(12, 76, 90, 11, UI.pink); R(11, 77, 92, 9, UI.pink); text('SPOOKY FRUTTI', 57, 79, UI.ink, { c: 1 });
+      portrait(188, 12 + (Math.floor(t * 2) % 2), 'smug');
+      text('ODD', 12, 12, UI.yellow, { s: 5, sh: UI.ink });
+      text('JOBS', 12, 44, UI.yellow, { s: 5, sh: UI.ink });
+      R(12, 76, 62, 11, UI.pink); R(11, 77, 64, 9, UI.pink); text('SIDE HUSTLES', 43, 79, UI.ink, { c: 1 });
       uiWindow(12, 104, 150, 54);
-      text('FIVE WAYS TO EARN HEARTS.', 18, 110, UI.white);
-      text('ONE WAY TO LOSE THEM ALL.', 18, 118, UI.white);
-      text('REACH ' + money(GOAL) + ' TO RETIRE.', 18, 126, UI.pink);
-      text('YOU HAVE ' + money(getHearts()), 18, 134, UI.yellow);
+      text('A RING WON\'T BUY ITSELF.', 18, 110, UI.white);
+      text('MOST OF THESE ARE CRIMES.', 18, 118, UI.white);
+      text(RUNS_PER_NIGHT + ' HUSTLES A NIGHT. CHOOSE WELL.', 18, 126, UI.pink);
+      text('YOU HAVE ' + money(getMoney()), 18, 134, UI.yellow);
       if (Math.floor(t * 2.5) % 2 === 0) text('PRESS SPACE OR CLICK', 18, 147, UI.yellow);
     }
   };
@@ -1368,7 +1373,7 @@ function menuScene(sel0 = 0) {
       if (hit.up) { sel = (sel + 5) % 6; sfx('move'); }
       if (hit.down) { sel = (sel + 1) % 6; sfx('move'); }
       if (hit.r) {
-        if (confirmReset > 0) { save = { rep: {}, best: {}, busts: 0, won: false }; persist(); confirmReset = 0; sfx('bad'); }
+        if (confirmReset > 0) { save = { rep: {}, best: {}, busts: 0 }; persist(); confirmReset = 0; sfx('bad'); }
         else confirmReset = 3;
       }
       let start = hit.a;
@@ -1384,11 +1389,9 @@ function menuScene(sel0 = 0) {
     draw() {
       g.drawImage(CHECKER, 0, 0);
       R(0, 0, W, 13, UI.win); R(0, 13, W, 1, UI.white); R(0, 14, W, 1, UI.ink);
-      text(money(getHearts()), 4, 4, UI.pink, { sh: UI.ink });
-      text(rankOf(getHearts()), 160, 4, UI.yellow, { c: 1, sh: UI.ink });
-      const gw = 62, frac = clamp(getHearts() / GOAL, 0, 1);
-      text(money(GOAL), W - gw - 6, 4, UI.white, { r: 1 });
-      R(W - gw - 3, 4, gw, 5, UI.ink); R(W - gw - 3, 4, gw * frac, 5, UI.pink);
+      text(money(getMoney()), 4, 4, UI.pink, { sh: UI.ink });
+      text(rankOf(getMoney()), 160, 4, UI.yellow, { c: 1, sh: UI.ink });
+      text('HUSTLE ' + (night.run + 1) + ' OF ' + RUNS_PER_NIGHT, W - 4, 4, UI.white, { r: 1, sh: UI.ink });
       HUSTLES.forEach((h, i) => {
         const y = ROW(i), on = i === sel, open = canAfford(h);
         R(4, y, 170, 23, UI.ink); R(5, y + 1, 168, 21, on ? '#ffd6e8' : UI.white); R(5, y + 20, 168, 2, on ? UI.pink : '#d8d4f0');
@@ -1399,7 +1402,6 @@ function menuScene(sel0 = 0) {
         const lv = save.rep[h.id] || 1;
         if (h.id !== 'gamble') { text('REP', 96, y + 3, '#5a5488'); for (let k = 0; k < 5; k++) R(110 + k * 5, y + 4, 4, 3, k < lv ? UI.deep : '#d8d4f0'); }
         if (!open) text('NEED ' + money(h.buyIn), 170, y + 13, UI.deep, { r: 1 });
-        else if (h.buyIn && !h.ownStake) text('STAKE ' + money(h.buyIn), 170, y + 13, '#5a5488', { r: 1 });
         else if (save.best[h.id]) text('BEST ' + money(save.best[h.id]), 170, y + 13, '#5a5488', { r: 1 });
       });
       const h = HUSTLES[sel];
@@ -1410,9 +1412,9 @@ function menuScene(sel0 = 0) {
       wrap(h.blurb, 126).forEach(l => { text(l, 185, yy, UI.white); yy += 7; });
       yy += 1;
       wrap('BUSTED: ' + h.bust, 126).forEach(l => { text(l, 185, yy, UI.pink); yy += 7; });
-      if (denied > 0) text('EARN MORE HEARTS FIRST', 89, 170, UI.pink, { c: 1, sh: UI.ink });
+      if (denied > 0) text('EARN SOME MONEY FIRST', 89, 170, UI.pink, { c: 1, sh: UI.ink });
       else if (Math.floor(t * 2) % 2 === 0) text('SPACE TO HUSTLE', 89, 170, UI.yellow, { c: 1, sh: UI.ink });
-      text(confirmReset > 0 ? 'R AGAIN: CLEAR REP (KEEPS HEARTS)' : 'R CLEAR REP   M ' + (muted ? 'UNMUTE' : 'MUTE'), W - 4, 170, confirmReset > 0 ? UI.pink : UI.white, { r: 1, sh: UI.ink });
+      text(confirmReset > 0 ? 'R AGAIN: CLEAR REP (KEEPS MONEY)' : 'R CLEAR REP   M ' + (muted ? 'UNMUTE' : 'MUTE'), W - 4, 170, confirmReset > 0 ? UI.pink : UI.white, { r: 1, sh: UI.ink });
     }
   };
 }
@@ -1438,7 +1440,6 @@ function briefScene(h) {
       h.how.forEach(l => { wrap(l, 180).forEach((ln, i) => { text((i ? '  ' : '\u2665 ') + ln, 124, y, UI.white); y += 8; }); y += 2; });
       y += 2;
       wrap('IF BUSTED: ' + h.bust, 180).forEach(l => { text(l, 124, y, UI.pink); y += 8; });
-      if (h.buyIn && !h.ownStake) text('STAKE TO PLAY: ' + money(h.buyIn) + ' (BACK IF YOU GET AWAY)', 124, 146, UI.yellow);
       if (Math.floor(t * 2.5) % 2 === 0) text('SPACE TO START', 124, 157, '#7fe07a');
       text('Q BACK', 304, 157, UI.white, { r: 1 });
     }
@@ -1448,11 +1449,10 @@ function briefScene(h) {
 function playScene(h) {
   const lvl = save.rep[h.id] || 1;
   const run = {
-    h, lvl, take: 0, stake: 0, heat: 0, pay: (1 + .35 * (lvl - 1)) * HEART_RATE, spd: 1 + .1 * (lvl - 1), time: h.time, done: null, msg: '', label: null,
+    h, lvl, take: 0, stake: 0, heat: 0, pay: (1 + .35 * (lvl - 1)) * h.rate, spd: 1 + .1 * (lvl - 1), time: h.time, done: null, msg: '', label: null,
     bust(msg) { if (this.done) return; this.done = 'bust'; this.msg = msg; endT = 1.5; sfx('bust'); bump(7); flashOn('#ff2030', .7); },
     finish(msg) { if (this.done) return; this.done = 'clean'; this.msg = msg; endT = 1.2; sfx('win'); flashOn('#7fe07a', .3); }
   };
-  if (!h.ownStake && spendHearts(h.buyIn)) run.stake = h.buyIn;
   const game = GAMES[h.id](run);
   let cd = h.ownStake ? 0 : 1.5, endT = 0, last = 3, isP = false;
   return {
@@ -1488,7 +1488,7 @@ function playScene(h) {
       // HUD
       R(0, 0, W, 13, UI.win); R(0, 13, W, 1, UI.white);
       text(h.name, 3, 4, UI.yellow, { sh: UI.ink });
-      if (h.id === 'gamble') text(money(getHearts()) + ' LEFT IN THE WALLET', W - 3, 4, UI.pink, { r: 1, sh: UI.ink });
+      if (h.id === 'gamble') text(money(getMoney()) + ' LEFT IN YOUR POCKET', W - 3, 4, UI.pink, { r: 1, sh: UI.ink });
       else {
         text(money(run.take), 104, 4, UI.pink, { c: 1, sh: UI.ink });
         const lab = { dogs: 'STRIKES', deal: 'HEAT', pimp: 'HEAT', heist: 'ALARM', fraud: 'TRACE' }[h.id];
@@ -1512,7 +1512,7 @@ function playScene(h) {
         uiWindow(50, 52, 220, 66);
         text('PAUSED', W / 2, 60, UI.yellow, { s: 3, c: 1, sh: UI.ink });
         text('SPACE: BACK TO WORK', W / 2, 92, '#fff', { c: 1 });
-        text('Q: WALK AWAY, LOSE THE STAKE AND TAKE', W / 2, 102, UI.pink, { c: 1 });
+        text('Q: WALK AWAY AND LOSE THE TAKE', W / 2, 102, UI.pink, { c: 1 });
       }
     }
   };
@@ -1520,21 +1520,22 @@ function playScene(h) {
 
 function resultScene(run) {
   const h = run.h, bust = run.done === 'bust';
-  const before = getHearts();
+  const before = getMoney();
   let fine = 0, paid = 0;
   if (bust) {
     fine = Math.min(before + (h.keep ? run.take : 0), Math.max(Math.round(before * h.finePct), h.fineMin));
     if (h.keep) paid = run.take;
-    setHearts(before + paid - fine);
+    setMoney(before + paid - fine);
     save.rep[h.id] = 1; save.busts = (save.busts || 0) + 1;
   } else {
     paid = run.stake + Math.round(run.take);
-    addHearts(paid);
+    addMoney(paid);
     if (!h.ownStake) save.rep[h.id] = Math.min(5, (save.rep[h.id] || 1) + 1);
     if (run.take > (save.best[h.id] || 0)) save.best[h.id] = Math.round(run.take);
   }
   persist();
-  const after = getHearts(), newRep = save.rep[h.id], winNow = after >= GOAL && !save.won;
+  const after = getMoney(), newRep = save.rep[h.id];
+  night.run++;
   const rain = heartRain(bust ? 0 : Math.round(Math.min(40, 6 + Math.log10(paid + 1) * 6))); let t = 0, shown = before, drop = 0;
   if (bust) sfx('bust'); else if (paid > 0) sfx('win');
   return {
@@ -1543,18 +1544,18 @@ function resultScene(run) {
       const k = clamp((t - .5) / .9, 0, 1); shown = before + (after - before) * k;
       if (t > .6 && (hit.a || mouse)) {
         sfx('ok');
-        if (winNow) { save.won = true; persist(); go(winScene()); } else go(menuScene(HUSTLES.indexOf(h)));
+        go(night.run >= RUNS_PER_NIGHT ? nightScene() : menuScene(HUSTLES.indexOf(h)));
       }
     },
     draw() {
       g.drawImage(CHECKER, 0, 0);
       rain.draw();
-      if (bust) for (let i = 0; i < 6; i++) { R(238, 30 + i * 24, 82, 1, '#5a5488'); text((6 - i) + 'FT', 240, 24 + i * 24, '#5a5488'); }
-      portrait(262, 44);
+      if (bust) for (let i = 0; i < 6; i++) { R(226, 30 + i * 24, 94, 1, '#5a5488'); text((6 - i) + 'FT', 300, 24 + i * 24, '#5a5488'); }
+      portrait(204, 14, bust ? 'cry' : 'smug');
       if (bust) {
         const by = -150 + drop * 150;
-        for (let i = 0; i < 9; i++) { R(240 + i * 10, by, 3, 180, '#8a90b0'); R(240 + i * 10, by, 1, 180, UI.white); }
-        R(236, by + 70, 84, 4, '#8a90b0');
+        for (let i = 0; i < 9; i++) { R(226 + i * 12, by, 3, 180, '#8a90b0'); R(226 + i * 12, by, 1, 180, UI.white); }
+        R(226, by + 70, 94, 4, '#8a90b0');
       }
       uiWindow(10, 12, 216, 156);
       text(bust ? 'BUSTED' : 'CLEAN', 18, 20, bust ? UI.pink : UI.yellow, { s: 4, sh: UI.ink });
@@ -1562,33 +1563,47 @@ function resultScene(run) {
       let y = 58;
       const line = (a, b, c) => { text(a, 18, y, UI.white); text(b, 216, y, c, { r: 1 }); y += 10; };
       const minus = n => '-' + money(n), plus = n => '+' + money(n);
-      if (run.stake) line(bust ? 'STAKE LOST' : 'STAKE BACK', (bust ? minus : plus)(run.stake), bust ? UI.pink : '#7fe07a');
+      if (run.stake) line(bust ? 'BET LOST' : 'BET BACK', (bust ? minus : plus)(run.stake), bust ? UI.pink : '#7fe07a');
       if (bust && !h.keep && run.take) line('SEIZED', minus(run.take), UI.pink);
       if (!bust || h.keep) line('THE TAKE', plus(run.take), '#7fe07a');
-      if (bust && fine) line(h.finePct ? 'BAIL (' + Math.round(h.finePct * 100) + '% OF HEARTS)' : 'FINE', minus(fine), UI.pink);
+      if (bust && fine) line(h.finePct ? 'BAIL (' + Math.round(h.finePct * 100) + '% OF MONEY)' : 'FINE', minus(fine), UI.pink);
       R(18, y, 198, 1, UI.white); y += 4;
-      text('HEARTS', 18, y, UI.pink, { s: 2, sh: UI.ink }); text(money(shown), 216, y, UI.yellow, { s: 2, r: 1, sh: UI.ink }); y += 16;
+      text('MONEY', 18, y, UI.pink, { s: 2, sh: UI.ink }); text(money(shown), 216, y, UI.yellow, { s: 2, r: 1, sh: UI.ink }); y += 16;
       if (h.id !== 'gamble') { text(bust ? 'REP RESET TO 1' : 'REP ' + newRep + ': PAYS MORE, MOVES FASTER', 18, y, bust ? UI.pink : UI.yellow); y += 8; }
       if (after === 0) text('FLAT BROKE. HOT DOGS ARE ALWAYS HIRING.', 18, y, UI.pink);
-      if (t > .6 && Math.floor(t * 2.5) % 2 === 0) text('SPACE TO CONTINUE', 18, 158, UI.white);
+      if (t > .6 && Math.floor(t * 2.5) % 2 === 0) text('SPACE: ' + (night.run >= RUNS_PER_NIGHT ? 'END THE NIGHT' : 'NEXT HUSTLE'), 18, 158, UI.white);
     }
   };
 }
 
-function winScene() {
-  const rain = heartRain(40); let t = 0;
+/* The end of a night: reports the score, which the site keeps if it's a new best. */
+function nightScene() {
+  const earned = Math.max(0, getMoney() - night.start), score = Math.round(clamp(earned / SCORE_TARGET, 0, 1) * 100);
+  if (embedded) toSite({ type: 'finish', score });
+  const rain = heartRain(score >= 70 ? 30 : 6); let t = 0;
+  sfx(score >= 40 ? 'win' : 'bad');
   return {
-    update(dt) { t += dt; rain.update(dt); if (t > 1 && (hit.a || mouse)) go(menuScene()); },
+    update(dt) {
+      t += dt; rain.update(dt);
+      if (t > .6 && (hit.a || mouse)) {
+        sfx('ok');
+        if (embedded) toSite({ type: 'leave' }); else go(titleScene());
+      }
+    },
     draw() {
-      for (let y = 0; y < H; y++) R(0, y, W, 1, y < 60 ? '#ff8fc0' : y < 110 ? '#ffb8c8' : y < 130 ? '#6a70d8' : '#ffe680');
-      R(140, 62, 40, 48, UI.white); R(132, 70, 56, 40, UI.white);
+      g.drawImage(CHECKER, 0, 0);
       rain.draw();
-      R(40, 100, 4, 44, '#7a4a1e'); R(24, 96, 36, 6, '#2e8a3e'); R(30, 90, 24, 6, '#2e8a3e');
-      portrait(262, 46);
-      text('RETIRED', W / 2 - 14, 16, UI.yellow, { s: 5, c: 1, sh: UI.ink });
-      text(money(GOAL) + '. PRIVATE ISLAND. NO EXTRADITION.', W / 2 - 14, 50, UI.ink, { c: 1 });
-      text('BUSTED ' + (save.busts || 0) + ' TIMES ALONG THE WAY', W / 2 - 14, 58, UI.ink, { c: 1 });
-      if (t > 1 && Math.floor(t * 2) % 2 === 0) text('SPACE: BACK TO THE HUSTLE', 12, 168, UI.ink);
+      portrait(204, 14, score >= 40 ? 'smug' : 'grump');
+      uiWindow(10, 12, 216, 156);
+      text('NIGHT OVER', 18, 20, UI.yellow, { s: 3, sh: UI.ink });
+      text('EARNED TONIGHT', 18, 50, UI.white); text(money(earned), 216, 50, '#7fe07a', { r: 1 });
+      text('TOTAL MONEY', 18, 60, UI.white); text(money(getMoney()), 216, 60, UI.yellow, { r: 1 });
+      R(18, 71, 198, 1, UI.white);
+      text('SCORE', 18, 78, UI.pink, { s: 2, sh: UI.ink }); text(score, 216, 78, UI.yellow, { s: 2, r: 1, sh: UI.ink });
+      for (let i = 0; i < 5; i++) text('\u2665', 18 + i * 8, 96, i < Math.round(score / 20) ? UI.pink : UI.ink);
+      wrap(score >= 70 ? 'THAT BUYS A REAL RING. SHE IS GOING TO CRY.' : score >= 40 ? 'SILVER RING MONEY. NOT BAD FOR A NIGHT.' : 'CANDY RINGS ARE ALSO A KIND OF RING.', 198).forEach((l, i) => text(l, 18, 108 + i * 8, UI.white));
+      text('THE PROPOSAL COSTS UP TO ' + money(BUDGET), 18, 130, UI.pink);
+      if (t > .6 && Math.floor(t * 2.5) % 2 === 0) text(embedded ? 'SPACE: BACK TO THE ARCADE' : 'SPACE: NEW NIGHT', 18, 158, UI.white);
     }
   };
 }
@@ -1610,7 +1625,8 @@ function frame(now) {
   mouse = null;
   requestAnimationFrame(frame);
 }
-go(titleScene());
+if (embedded) startNight();
+go(embedded ? menuScene() : titleScene());
 requestAnimationFrame(frame);
 cv.focus();
 </script>
