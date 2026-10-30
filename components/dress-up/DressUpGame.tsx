@@ -16,6 +16,7 @@ import {
   playWinFanfare,
 } from "@/lib/dress-up/audio";
 import PixelAvatar from "./PixelAvatar";
+import ClothingSprite from "./ClothingSprite";
 import { finishChapter } from "@/lib/progress";
 
 interface FlyingEntity {
@@ -65,7 +66,7 @@ export default function DressUpGame() {
     (slots.accessory && !slots.accessory.isClean)
   );
 
-  // Spawn new flying items
+  // Spawn new flying items (flying left-to-right across the room)
   const spawnItem = useCallback(() => {
     // Pick random item from catalog
     const randomIndex = Math.floor(Math.random() * CLOTHING_ITEMS.length);
@@ -74,13 +75,13 @@ export default function DressUpGame() {
     const newEntity: FlyingEntity = {
       instanceId: nextEntityId.current++,
       item,
-      x: 105, // start slightly off the right edge
-      y: 12 + Math.random() * 62, // vertical spread
-      speed: 0.18 + Math.random() * 0.22, // speed
+      x: -18, // start slightly off the left edge
+      y: 8 + Math.random() * 64, // vertical spread
+      speed: 0.17 + Math.random() * 0.18, // speed
       phase: Math.random() * Math.PI * 2,
     };
 
-    setFlyingItems((prev) => [...prev.slice(-7), newEntity]);
+    setFlyingItems((prev) => [...prev.slice(-6), newEntity]);
   }, []);
 
   // Main game loop
@@ -96,21 +97,21 @@ export default function DressUpGame() {
       const delta = currentTime - lastTime;
       lastTime = currentTime;
 
-      // Spawn every 1400ms
-      if (currentTime - lastSpawnTime.current > 1400) {
+      // Spawn every 1300ms
+      if (currentTime - lastSpawnTime.current > 1300) {
         spawnItem();
         lastSpawnTime.current = currentTime;
       }
 
-      // Update positions
+      // Update positions moving left to right
       setFlyingItems((prev) => {
         return prev
           .map((entity) => ({
             ...entity,
-            x: entity.x - entity.speed * (delta / 16),
+            x: entity.x + entity.speed * (delta / 16),
             phase: entity.phase + 0.05,
           }))
-          .filter((entity) => entity.x > -25); // remove when offscreen left
+          .filter((entity) => entity.x < 112); // remove when offscreen right
       });
 
       animationFrameId.current = requestAnimationFrame(loop);
@@ -244,54 +245,54 @@ export default function DressUpGame() {
             </button>
           </div>
 
-          {/* Closet Arena where clothes fly */}
-          <div className="flying-arena">
-            {/* Background decor (closet / bedroom wallpaper) */}
-            <div className="closet-bg-pattern" />
+          {/* Main Stage: Left is Flying Arena, Right is Mr Honeycrisp Standing */}
+          <div className="dress-up-stage-body">
+            {/* Flying Clothes Area (Left / Center) */}
+            <div className="flying-arena">
+              <div className="closet-bg-pattern" />
 
-            {/* Flying Items */}
-            {flyingItems.map((entity) => {
-              const { item, x, y, phase, instanceId } = entity;
-              const bobY = y + Math.sin(phase) * 3;
+              {/* Flying Items: Large pixel art image only, NO descriptions! */}
+              {flyingItems.map((entity) => {
+                const { item, x, y, phase, instanceId } = entity;
+                const bobY = y + Math.sin(phase) * 4;
 
-              return (
-                <button
-                  key={instanceId}
-                  onClick={(e) => handleCatch(entity, e)}
+                return (
+                  <button
+                    key={instanceId}
+                    onClick={(e) => handleCatch(entity, e)}
+                    style={{
+                      left: `${x}%`,
+                      top: `${bobY}%`,
+                    }}
+                    className={`flying-graphic-btn ${item.isClean ? "graphic-clean" : "graphic-bad"}`}
+                    title={item.name}
+                    aria-label={item.name}
+                  >
+                    <ClothingSprite item={item} size={84} />
+                  </button>
+                );
+              })}
+
+              {/* Floating Pop Feedback */}
+              {feedback && (
+                <div
+                  key={feedback.id}
                   style={{
-                    left: `${x}%`,
-                    top: `${bobY}%`,
+                    left: `${feedback.x}%`,
+                    top: `${feedback.y}%`,
                   }}
-                  className={`flying-item ${item.isClean ? "item-clean" : "item-bad"}`}
-                  title={`${item.name} (${CATEGORY_NAMES[item.category]})`}
+                  className={`pop-feedback ${feedback.isGood ? "feedback-good" : "feedback-bad"}`}
                 >
-                  <span className="item-icon">{item.icon}</span>
-                  <div className="item-info">
-                    <span className="item-name">{item.name}</span>
-                    <span className="item-cat-badge">
-                      {CATEGORY_NAMES[item.category]} • {item.isClean ? "Clean" : "Dirty/Ripped"}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
+                  {feedback.text}
+                </div>
+              )}
+            </div>
 
-            {/* Floating Pop Feedback */}
-            {feedback && (
-              <div
-                key={feedback.id}
-                style={{
-                  left: `${feedback.x}%`,
-                  top: `${feedback.y}%`,
-                }}
-                className={`pop-feedback ${feedback.isGood ? "feedback-good" : "feedback-bad"}`}
-              >
-                {feedback.text}
-              </div>
-            )}
-
-            {/* Mr. Honeycrisp Avatar in dressing area */}
+            {/* Mr. Honeycrisp Standing Full-Body Stand (Right side) */}
             <div className="honeycrisp-dressing-stage">
+              <div className="stage-pedestal-header">
+                <span className="character-label">Mr. Honeycrisp</span>
+              </div>
               <PixelAvatar
                 top={slots.top}
                 bottom={slots.bottom}
