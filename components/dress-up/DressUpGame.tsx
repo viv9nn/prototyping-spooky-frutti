@@ -43,6 +43,8 @@ export default function DressUpGame() {
     shoes: null,
     accessory: null,
   });
+  const winTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [flyingItems, setFlyingItems] = useState<FlyingEntity[]>([]);
   const [feedback, setFeedback] = useState<{ id: number; text: string; isGood: boolean; x: number; y: number } | null>(null);
@@ -50,6 +52,14 @@ export default function DressUpGame() {
   const nextFeedbackId = useRef(1);
   const animationFrameId = useRef<number | null>(null);
   const lastSpawnTime = useRef<number>(0);
+
+  // Clean up any pending timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (winTimeoutRef.current) clearTimeout(winTimeoutRef.current);
+      if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
+    };
+  }, []);
 
   // Check outfit completion
   const isCompleteAndClean = Boolean(
@@ -161,34 +171,33 @@ export default function DressUpGame() {
       });
     }
 
-    // Equip to appropriate slot and check for win
-    setSlots((prev) => {
-      const nextSlots = {
-        ...prev,
-        [item.category]: item,
-      };
-
-      const won = Boolean(
-        nextSlots.top?.isClean &&
-        nextSlots.bottom?.isClean &&
-        nextSlots.shoes?.isClean &&
-        nextSlots.accessory?.isClean
-      );
-
-      if (won) {
-        playWinFanfare();
-        finishChapter("dress-up", 100);
-        setTimeout(() => {
-          setGameState("VICTORY");
-        }, 1200);
-      }
-
-      return nextSlots;
-    });
-
-    setTimeout(() => {
+    if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
+    feedbackTimeoutRef.current = setTimeout(() => {
       setFeedback(null);
     }, 1200);
+
+    // Equip to appropriate slot and check for win
+    const nextSlots: OutfitSlots = {
+      ...slots,
+      [item.category]: item,
+    };
+    setSlots(nextSlots);
+
+    const won = Boolean(
+      nextSlots.top?.isClean &&
+      nextSlots.bottom?.isClean &&
+      nextSlots.shoes?.isClean &&
+      nextSlots.accessory?.isClean
+    );
+
+    if (won) {
+      playWinFanfare();
+      if (winTimeoutRef.current) clearTimeout(winTimeoutRef.current);
+      winTimeoutRef.current = setTimeout(() => {
+        finishChapter("dress-up", 100);
+        setGameState("VICTORY");
+      }, 1200);
+    }
   };
 
   // Remove / strip an item from a slot
@@ -202,6 +211,8 @@ export default function DressUpGame() {
 
   // Reset game
   const handleRestart = () => {
+    if (winTimeoutRef.current) clearTimeout(winTimeoutRef.current);
+    if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
     setSlots({
       top: null,
       bottom: null,
@@ -209,6 +220,7 @@ export default function DressUpGame() {
       accessory: null,
     });
     setFlyingItems([]);
+    setFeedback(null);
     setGameState("PLAYING");
   };
 
