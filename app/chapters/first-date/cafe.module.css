@@ -21,6 +21,7 @@
 }
 
 .message {
+  padding-bottom: 36px;
   cursor: pointer;
 }
 
@@ -83,6 +84,30 @@
   background: var(--ink);
   outline: 2px solid var(--white);
   box-shadow: 0 0 0 4px var(--ink);
+}
+
+/* Fills as the fart builds. It goes red when it's close to coming out on its own. */
+
+.pressure {
+  position: absolute;
+  top: 6%;
+  left: 84.5%;
+  width: 2.2%;
+  height: 62%;
+  background: var(--ink);
+  outline: 2px solid var(--white);
+}
+
+.pressureFill {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--yellow);
+}
+
+.pressureFill[data-danger="true"] {
+  background: var(--pink-deep);
 }
 
 .safeZone {
