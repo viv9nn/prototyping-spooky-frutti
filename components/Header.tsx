@@ -1,5 +1,6 @@
 import Link from "next/link";
 import HeartCount from "@/components/HeartCount";
+import MoneyCount from "@/components/MoneyCount";
 import { ARCADE_NAME } from "@/lib/arcade";
 
 export default function Header() {
@@ -8,9 +9,7 @@ export default function Header() {
       <Link href="/" className="arcade-name">
         {ARCADE_NAME}
       </Link>
-      <nav>
-        <Link href="/shop">Gift Shop</Link>
-      </nav>
+      <MoneyCount />
       <HeartCount />
     </header>
   );
