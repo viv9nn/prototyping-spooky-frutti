@@ -1,0 +1,220 @@
+/* Every sprite is a full-frame layer, so each one lines up with the cafe on its own. */
+
+.sprite {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.speaking {
+  animation: bob 0.6s steps(2) infinite;
+}
+
+@keyframes bob {
+  50% {
+    transform: translateY(-0.8%);
+  }
+}
+
+.message {
+  cursor: pointer;
+}
+
+.next {
+  font: inherit;
+  text-shadow: inherit;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.next:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 3px;
+}
+
+.countdown {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  color: var(--yellow);
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.pressA {
+  font-size: 16px;
+}
+
+.exit {
+  display: inline-block;
+  margin-top: 8px;
+  text-shadow: none;
+}
+
+.hiddenSprite {
+  opacity: 0;
+}
+
+/* The game layer matches the art's 16:9 frame, so the bar stays beside Mr. Honeycrisp
+   even on small screens, where the stage also holds the message window. */
+
+.gameLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  container-type: inline-size;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.bar {
+  position: absolute;
+  top: 6%;
+  left: 88%;
+  width: 8%;
+  height: 62%;
+  background: var(--ink);
+  outline: 2px solid var(--white);
+  box-shadow: 0 0 0 4px var(--ink);
+}
+
+.safeZone {
+  position: absolute;
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  font-size: 1.7cqw;
+  line-height: 1.1;
+  text-align: center;
+  background: #6fdc8c;
+  transition: top 0.2s steps(3);
+}
+
+.marker {
+  position: absolute;
+  top: 0;
+  right: -6%;
+  left: -6%;
+  background: var(--yellow);
+  border: 2px solid var(--ink);
+  outline: 1px solid var(--white);
+}
+
+.score {
+  position: absolute;
+  top: 0.5%;
+  left: 80%;
+  width: 20%;
+  font-size: 2.2cqw;
+  line-height: 1.2;
+  text-align: center;
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+/* Fart reaction: everything here is timed, so remounting replays it. */
+
+.surprised {
+  opacity: 0;
+}
+
+.reacting {
+  animation: show-briefly 1.6s steps(1) forwards;
+}
+
+@keyframes show-briefly {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.jolt {
+  animation: jolt 0.4s steps(4);
+}
+
+@keyframes jolt {
+  25%,
+  75% {
+    transform: translateY(-1.5%);
+  }
+  50% {
+    transform: translateY(0.5%);
+  }
+}
+
+.fart {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  pointer-events: none;
+  container-type: inline-size;
+}
+
+/* A six-frame strip, slid along one frame at a time; it rests off-stage. */
+.fartFrames {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 600%;
+  height: 100%;
+  max-width: none;
+  image-rendering: pixelated;
+  transform: translateX(-100%);
+}
+
+.farting .fartFrames {
+  animation: fart-frames 1.1s steps(6, end) forwards;
+}
+
+@keyframes fart-frames {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+.fartSound {
+  position: absolute;
+  top: 56%;
+  left: 74%;
+  color: var(--yellow);
+  font-size: 3.2cqw;
+  text-shadow: 2px 2px 0 var(--ink);
+  opacity: 0;
+}
+
+.farting .fartSound {
+  animation: show-briefly 0.9s steps(1) forwards;
+}
+
+/* The hub stacks the scene above the message on small screens, with a border on the background. */
+
+@media (max-width: 800px) {
+  .sprite {
+    height: auto;
+    border: 4px solid transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .speaking {
+    animation: none;
+  }
+}

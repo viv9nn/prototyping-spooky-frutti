@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { addHearts } from "@/lib/wallet";
 import { recordStageResult, StageGrade } from "@/lib/gameState";
+import { finishChapter } from "@/lib/progress";
 import { STAGE_3_CONFIG, getInterpolatedValue, getRandomBetween } from "./config";
 import {
   ActiveNotification,
@@ -295,6 +296,8 @@ export default function Stage3Game() {
 
     const heartsEarned = STAGE_3_CONFIG.heartsReward[grade];
     addHearts(heartsEarned);
+
+    finishChapter("phone", Math.max(0, 100 - finalSuspicion));
 
     recordStageResult("stage-3", {
       grade,
