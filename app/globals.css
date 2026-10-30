@@ -1,0 +1,291 @@
+:root {
+  color-scheme: dark;
+  --ink: #1c1440;
+  --window: #24287e;
+  --window-light: #4a4fc0;
+  --white: #fdfbff;
+  --pink: #ff8fc0;
+  --pink-deep: #e8487f;
+  --yellow: #ffe680;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+  color: var(--white);
+  font-size: 16px;
+  line-height: 1.6;
+  background: conic-gradient(#2a2058 25%, #231a4c 0 50%, #2a2058 0 75%, #231a4c 0) 0 0 / 32px 32px;
+}
+
+a:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 3px;
+}
+
+/* The classic message window: a blue panel with a stepped white pixel border. */
+
+.window {
+  background: linear-gradient(rgba(74, 79, 192, 0.97), rgba(36, 40, 126, 0.97));
+  box-shadow:
+    0 -4px 0 var(--white),
+    0 4px 0 var(--white),
+    -4px 0 0 var(--white),
+    4px 0 0 var(--white),
+    0 -8px 0 var(--ink),
+    0 8px 0 var(--ink),
+    -8px 0 0 var(--ink),
+    8px 0 0 var(--ink),
+    -4px -4px 0 var(--ink),
+    4px -4px 0 var(--ink),
+    -4px 4px 0 var(--ink),
+    4px 4px 0 var(--ink);
+}
+
+/* Header */
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 32px;
+  padding: 12px 24px;
+  background: var(--window);
+  border-bottom: 4px solid var(--white);
+  box-shadow: 0 4px 0 var(--ink);
+}
+
+.arcade-name {
+  color: var(--yellow);
+  font-size: 24px;
+  text-decoration: none;
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+.site-header nav {
+  flex: 1;
+}
+
+.site-header nav a {
+  color: var(--white);
+  white-space: nowrap;
+}
+
+.heart-count {
+  color: var(--pink);
+  font-size: 20px;
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+/* Page content */
+
+main {
+  padding: 24px;
+}
+
+/* Placeholder pages */
+
+.placeholder {
+  max-width: 640px;
+  margin: 48px auto;
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.page-title {
+  color: var(--yellow);
+  font-size: 32px;
+  font-weight: 400;
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+.coming-soon {
+  margin: 8px 0 32px;
+  font-size: 20px;
+}
+
+/* Hub: a visual novel screen, stacked in layers over a 16:9 scene */
+
+.vn-stage {
+  position: relative;
+  width: min(100%, calc((100vh - 128px) * 16 / 9));
+  aspect-ratio: 16 / 9;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 4px solid var(--ink);
+}
+
+.vn-background,
+.vn-character {
+  position: absolute;
+  image-rendering: pixelated;
+}
+
+.vn-background {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.vn-character {
+  left: 6%;
+  bottom: -12%; /* crops her below the message window */
+  width: 46%;
+  height: auto;
+}
+
+.vn-choices {
+  position: absolute;
+  top: 7%;
+  right: 5%;
+  width: 40%;
+  max-height: 58%;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.vn-choices h1 {
+  margin-bottom: 8px;
+  color: var(--yellow);
+  font-size: 20px;
+  font-weight: 400;
+  text-align: center;
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+.vn-choices ul {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+}
+
+.vn-choice {
+  display: block;
+  padding: 8px 16px 8px 32px;
+  color: var(--ink);
+  font-size: 18px;
+  text-align: left;
+  text-decoration: none;
+  background: var(--white);
+  border: 2px solid var(--ink);
+  box-shadow: inset 0 -4px 0 #d8d4f0;
+}
+
+.vn-choice:hover,
+.vn-choice:focus-visible {
+  position: relative;
+  background: #ffd6e8;
+  box-shadow: inset 0 -4px 0 var(--pink);
+}
+
+.vn-choice:hover::before,
+.vn-choice:focus-visible::before {
+  content: "\2665";
+  position: absolute;
+  left: 10px;
+  color: var(--pink-deep);
+}
+
+.placeholder .vn-choice {
+  display: inline-block;
+  padding: 8px 32px;
+}
+
+.vn-message {
+  position: absolute;
+  right: 3%;
+  bottom: 5%;
+  left: 3%;
+  min-height: 24%;
+  padding: 24px 32px 16px;
+  font-size: 20px;
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+.vn-nameplate {
+  position: absolute;
+  top: -18px;
+  left: 16px;
+  padding: 0 16px;
+  color: var(--ink);
+  text-shadow: none;
+  background: var(--pink);
+  border: 2px solid var(--ink);
+  outline: 2px solid var(--white);
+}
+
+.vn-next {
+  position: absolute;
+  right: 16px;
+  bottom: 8px;
+  color: var(--yellow);
+  animation: vn-blink 1s steps(2) infinite;
+}
+
+@keyframes vn-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Small screens: the scene sits on top and the windows flow beneath it. */
+
+@media (max-width: 800px) {
+  main {
+    padding: 16px;
+  }
+
+  .vn-stage {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    width: 100%;
+    aspect-ratio: auto;
+    overflow: visible;
+    border: 0;
+  }
+
+  .vn-background {
+    position: relative;
+    inset: auto;
+    height: auto;
+    border: 4px solid var(--ink);
+  }
+
+  .vn-character {
+    top: 0;
+    bottom: auto;
+    left: 6%;
+    width: 42%;
+  }
+
+  .vn-message,
+  .vn-choices {
+    position: relative;
+    inset: auto;
+    width: auto;
+    max-height: none;
+    margin: 8px;
+  }
+
+  .vn-message {
+    order: 1;
+    padding-top: 28px;
+    font-size: 18px;
+  }
+
+  .vn-choices {
+    order: 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vn-next {
+    animation: none;
+  }
+}
