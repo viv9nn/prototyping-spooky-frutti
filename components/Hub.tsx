@@ -80,7 +80,7 @@ export default function Hub() {
       />
       <Image
         src={flustered ? "/hub/host-blush.png" : "/hub/host.png"}
-        alt={`A girl with long pink hair and a sailor uniform ${flustered ? "blushes" : "smiles"} at you.`}
+        alt={`A strawberry-headed woman in a blue shirt and jeans ${flustered ? "blushes" : "smiles"} at you.`}
         width={128}
         height={170}
         unoptimized
