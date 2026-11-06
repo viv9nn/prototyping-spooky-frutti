@@ -1,11 +1,15 @@
 /* ==========================================================================
-   Stage 3: Late-Night TikTok - 100% Authentic Pixelated Arcade Styling
+   Stage 3: Late-Night TikTok - 100% Authentic Retro Arcade Typography & Styling
+   Matching Image 2 (DotGothic16 pixel typography, 2px text-shadows, stepped boxes)
    ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=DotGothic16&display=swap');
 
 .stage-3-container,
 .stage-3-container * {
   box-sizing: border-box;
-  font-family: inherit, 'DotGothic16', monospace, 'Courier New' !important;
+  font-family: 'DotGothic16', ui-monospace, monospace, 'Courier New' !important;
+  font-weight: 400 !important;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   text-rendering: geometricPrecision;
@@ -15,7 +19,7 @@
 
 .stage-3-container {
   position: relative;
-  max-width: 1060px;
+  max-width: 1040px;
   margin: 0 auto;
   min-height: calc(100vh - 110px);
   display: flex;
@@ -56,7 +60,7 @@
 }
 
 /* ==========================================================================
-   Top HUD Bar (From Screenshot)
+   Top HUD Bar (Matching Image 1 & Image 2 Typography)
    ========================================================================== */
 
 .stage3-hud {
@@ -86,14 +90,13 @@
 }
 
 .hud-label {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 1px;
+  font-size: 14px;
+  letter-spacing: 0.5px;
   color: var(--yellow);
-  text-shadow: 1px 1px 0 var(--ink);
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
-/* Timer */
+/* Timer Card */
 .hud-timer {
   min-width: 170px;
 }
@@ -102,15 +105,15 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 26px;
   color: var(--white);
   text-shadow: 2px 2px 0 var(--ink);
   line-height: 1;
 }
 
 .timer-icon {
-  font-size: 18px;
+  font-size: 20px;
+  line-height: 1;
 }
 
 .timer-segmented-bar {
@@ -120,7 +123,7 @@
   background: #0d0a22;
   border: 2px solid var(--white);
   box-shadow: inset 0 0 0 1px var(--ink);
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .timer-block {
@@ -134,7 +137,7 @@
   box-shadow: 0 0 3px var(--yellow);
 }
 
-/* Suspicion Meter */
+/* Suspicion Meter Card */
 .hud-suspicion {
   flex: 1;
   max-width: 340px;
@@ -148,8 +151,7 @@
 
 .suspicion-val {
   font-size: 16px;
-  font-weight: 700;
-  text-shadow: 1px 1px 0 var(--ink);
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
 .text-safe {
@@ -161,7 +163,7 @@
 }
 
 .text-danger {
-  color: #ff4d6d;
+  color: var(--pink-deep);
   animation: danger-blink 0.5s steps(2) infinite;
 }
 
@@ -176,7 +178,7 @@
   border: 2px solid var(--white);
   box-shadow: inset 0 0 0 1px var(--ink);
   overflow: hidden;
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .suspicion-fill {
@@ -197,7 +199,7 @@
   box-shadow: 0 0 8px #ef4444;
 }
 
-/* Tries / Lives */
+/* Tries / Lives Card */
 .hud-lives {
   align-items: center;
   min-width: 120px;
@@ -216,7 +218,7 @@
 
 .heart-unit.alive {
   color: var(--pink);
-  text-shadow: 1px 1px 0 var(--ink), 0 0 6px var(--pink-deep);
+  text-shadow: 2px 2px 0 var(--ink), 0 0 6px var(--pink-deep);
 }
 
 .heart-unit.spent {
@@ -237,7 +239,6 @@
   border: 2px solid var(--ink);
   padding: 6px 12px;
   font-size: 15px;
-  font-weight: 700;
   cursor: pointer;
   box-shadow:
     0 -2px 0 var(--white),
@@ -301,7 +302,7 @@
   justify-content: flex-end;
 }
 
-/* Top-Left Gaze Status Badge */
+/* Top-Left Gaze Status Badge (From screenshot) */
 .gaze-status-pill {
   position: absolute;
   top: 14px;
@@ -315,15 +316,14 @@
 }
 
 .gaze-pill-square {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1;
 }
 
 .gaze-pill-text {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 14px;
   color: var(--white);
-  text-shadow: 1px 1px 0 var(--ink);
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
 /* Bedroom Wall Decor: Window & Lamp */
@@ -394,7 +394,8 @@
 .pixel-star-dot {
   position: absolute;
   color: var(--yellow);
-  font-size: 11px;
+  font-size: 12px;
+  text-shadow: 1px 1px 0 var(--ink);
 }
 
 .pixel-star-dot.s1 { top: 12px; left: 24px; }
@@ -492,7 +493,6 @@
   display: flex;
   gap: 34px;
   font-size: 26px;
-  font-weight: 900;
   color: var(--ink);
 }
 
@@ -501,7 +501,6 @@
   bottom: 30px;
   left: 92px;
   font-size: 22px;
-  font-weight: 900;
   color: var(--ink);
 }
 
@@ -531,6 +530,7 @@
   top: -24px;
   padding: 4px 10px;
   font-size: 18px;
+  text-shadow: 2px 2px 0 var(--ink);
   animation: popup-bounce 0.3s steps(2) infinite alternate;
 }
 
@@ -544,6 +544,7 @@
   top: -20px;
   padding: 2px 8px;
   font-size: 14px;
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
 .apple-nervous-sweat {
@@ -585,15 +586,49 @@
   border-top: 2px solid #4a347c;
 }
 
-/* Visual Novel Dialogue Box on Reaction */
+/* Visual Novel Dialogue Box (Matching Image 2 VN Box) */
 .stage3-speech-dialogue {
   position: absolute;
   left: 14px;
   right: 14px;
   bottom: 14px;
   z-index: 40;
-  padding: 16px 20px;
+  padding: 18px 24px 14px;
   animation: pop-dialogue 0.2s steps(2);
+}
+
+.stage3-speech-dialogue .vn-nameplate {
+  position: absolute;
+  top: -18px;
+  left: 16px;
+  padding: 0 16px;
+  color: var(--ink) !important;
+  text-shadow: none !important;
+  background: var(--pink);
+  border: 2px solid var(--ink);
+  outline: 2px solid var(--white);
+  font-size: 18px;
+}
+
+.stage3-speech-dialogue .vn-dialogue-text {
+  font-size: 18px;
+  color: var(--white);
+  text-shadow: 2px 2px 0 var(--ink);
+  line-height: 1.5;
+}
+
+.stage3-speech-dialogue .vn-next {
+  position: absolute;
+  right: 16px;
+  bottom: 8px;
+  color: var(--yellow);
+  font-size: 18px;
+  text-shadow: 2px 2px 0 var(--ink);
+  animation: vn-blink 1s steps(2) infinite;
+}
+
+@keyframes vn-blink {
+  50% { opacity: 0; }
 }
 
 @keyframes pop-dialogue {
@@ -651,7 +686,7 @@
   padding: 0 12px;
   color: var(--white);
   font-size: 13px;
-  font-weight: 700;
+  text-shadow: 1px 1px 0 var(--ink);
   background: rgba(0, 0, 0, 0.85);
   border-bottom: 1px solid #27272a;
   z-index: 45;
@@ -671,7 +706,7 @@
 }
 
 .status-5g {
-  font-size: 11px;
+  font-size: 12px;
   color: #a1a1aa;
 }
 
@@ -703,7 +738,7 @@
 .tiktok-sidebar {
   position: absolute;
   right: 8px;
-  bottom: 60px;
+  bottom: 56px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -745,7 +780,6 @@
   width: 14px;
   height: 14px;
   font-size: 11px;
-  font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -758,9 +792,9 @@
 }
 
 .sidebar-count {
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
   font-family: inherit;
+  text-shadow: none;
 }
 
 .like-btn.liked {
@@ -784,7 +818,7 @@
   position: absolute;
   left: 10px;
   right: 68px;
-  bottom: 46px;
+  bottom: 44px;
   color: var(--white);
   z-index: 25;
   text-shadow: 2px 2px 0 var(--ink);
@@ -792,29 +826,33 @@
 }
 
 .author-handle {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 15px;
   color: var(--yellow);
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
 .caption-text {
-  font-size: 12px;
-  line-height: 1.3;
+  font-size: 13px;
+  line-height: 1.35;
   margin: 2px 0;
+  color: var(--white);
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
 .tags-text {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--pink);
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
 .music-ticker {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 12px;
   color: #cbd5e1;
   margin-top: 3px;
+  text-shadow: 1px 1px 0 var(--ink);
 }
 
 .music-icon {
@@ -844,9 +882,9 @@
 }
 
 .tab-pill {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
   color: #cbd5e1;
+  text-shadow: 1px 1px 0 var(--ink);
   cursor: pointer;
 }
 
@@ -856,10 +894,10 @@
 
 .tab-pill.add-tab {
   background: var(--pink);
-  color: var(--ink);
+  color: var(--ink) !important;
+  text-shadow: none !important;
   padding: 1px 6px;
   border: 1px solid var(--white);
-  font-weight: 900;
 }
 
 .phone-home-indicator {
@@ -915,7 +953,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .notif-header-left {
@@ -926,16 +964,17 @@
 
 .notif-icon-badge {
   color: var(--yellow);
-  font-weight: 700;
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
 .notif-app-name {
   color: var(--white);
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
 .notif-now-time {
   color: #cbd5e1;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .notif-body-row {
@@ -945,16 +984,16 @@
 }
 
 .notif-sender-title {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 14px;
   color: var(--yellow);
-  text-shadow: 1px 1px 0 var(--ink);
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
 .notif-message-text {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--white);
-  line-height: 1.3;
+  line-height: 1.35;
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
 .notif-flick-hint {
@@ -964,9 +1003,9 @@
   gap: 4px;
   margin-top: 3px;
   color: var(--yellow);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
   letter-spacing: 1px;
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
 .hint-arrow {
@@ -1013,7 +1052,6 @@
 
 .instruction-main-rule {
   font-size: 24px;
-  font-weight: 700;
   line-height: 1.4;
   color: var(--white);
   text-shadow: 2px 2px 0 var(--ink);
@@ -1040,9 +1078,9 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 16px;
   color: var(--white);
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
 .demo-flick-arrow {
@@ -1058,6 +1096,7 @@
 .demo-subtext {
   font-size: 14px;
   color: var(--yellow);
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
 .instruction-rules-summary {
@@ -1072,22 +1111,22 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--white);
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
 .rule-badge {
   padding: 2px 8px;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 13px;
   border: 1px solid var(--ink);
   min-width: 140px;
   text-align: center;
 }
 
-.badge-safe { background: #10b981; color: var(--ink); }
-.badge-warning { background: #f59e0b; color: var(--ink); }
-.badge-danger { background: #ef4444; color: var(--white); }
+.badge-safe { background: #10b981; color: var(--ink) !important; text-shadow: none !important; }
+.badge-warning { background: #f59e0b; color: var(--ink) !important; text-shadow: none !important; }
+.badge-danger { background: #ef4444; color: var(--white) !important; text-shadow: 2px 2px 0 var(--ink); }
 
 .instruction-countdown-box {
   display: flex;
@@ -1099,13 +1138,13 @@
 .countdown-label {
   font-size: 14px;
   color: #cbd5e1;
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
 .countdown-number {
   font-size: 36px;
-  font-weight: 900;
   color: var(--yellow);
-  text-shadow: 2px 2px 0 var(--ink);
+  text-shadow: 3px 3px 0 var(--ink);
   min-width: 40px;
 }
 
@@ -1145,13 +1184,14 @@
 .gag-impact-text p {
   font-size: 20px;
   color: var(--white);
+  text-shadow: 2px 2px 0 var(--ink);
   margin-bottom: 16px;
 }
 
 .gag-tries-remaining {
   font-size: 18px;
-  font-weight: 700;
   color: var(--pink);
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
 /* Recap */
@@ -1164,6 +1204,7 @@
 .recap-intro {
   font-size: 16px;
   color: var(--white);
+  text-shadow: 2px 2px 0 var(--ink);
   margin: 12px 0 20px;
 }
 
@@ -1183,10 +1224,10 @@
 
 .tip-num {
   background: var(--yellow);
-  color: var(--ink);
+  color: var(--ink) !important;
+  text-shadow: none !important;
   width: 28px;
   height: 28px;
-  font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1198,12 +1239,14 @@
   display: block;
   font-size: 16px;
   color: var(--yellow);
+  text-shadow: 2px 2px 0 var(--ink);
   margin-bottom: 2px;
 }
 
 .recap-tip p {
   font-size: 14px;
   color: var(--white);
+  text-shadow: 2px 2px 0 var(--ink);
   margin: 0;
 }
 
@@ -1233,7 +1276,6 @@
 .results-grade-stamp {
   display: inline-block;
   font-size: 72px;
-  font-weight: 900;
   padding: 4px 20px;
   border: 6px solid var(--yellow);
   color: var(--yellow);
@@ -1254,8 +1296,8 @@
 
 .results-girlfriend-quote {
   font-size: 17px;
-  font-style: italic;
   color: var(--pink);
+  text-shadow: 2px 2px 0 var(--ink);
   margin: 16px 0 24px;
   padding: 12px;
   background: rgba(15, 10, 38, 0.6);
@@ -1277,29 +1319,34 @@
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: 13px;
   color: #94a3b8;
   letter-spacing: 0.5px;
+  text-shadow: 1px 1px 0 var(--ink);
 }
 
 .stat-value {
   font-size: 22px;
-  font-weight: 700;
   color: var(--white);
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
+.stat-hearts .stat-value {
+  color: var(--pink);
+  text-shadow: 2px 2px 0 var(--ink), 0 0 8px var(--pink-deep);
+}
 .results-grading-legend {
   display: flex;
   justify-content: space-around;
-  font-size: 12px;
+  font-size: 13px;
   color: #94a3b8;
+  text-shadow: 1px 1px 0 var(--ink);
   margin-bottom: 24px;
   padding: 8px;
 }
 
 .results-grading-legend .active-rank {
   color: var(--yellow);
-  font-weight: 700;
   text-decoration: underline;
 }
 
@@ -1322,8 +1369,8 @@
 
 .dev-title {
   font-size: 14px;
-  font-weight: 700;
   color: var(--yellow);
+  text-shadow: 2px 2px 0 var(--ink);
 }
 
 .dev-buttons {
@@ -1334,16 +1381,91 @@
 
 .dev-pill {
   background: var(--white);
-  color: var(--ink);
+  color: var(--ink) !important;
+  text-shadow: none !important;
   border: 2px solid var(--ink);
   padding: 4px 10px;
   font-size: 13px;
-  font-weight: 700;
   cursor: pointer;
 }
 
 .dev-pill:hover {
   background: var(--yellow);
+}
+
+/* Video Animations */
+.anim-steam {
+  animation: steam-rise 2s linear infinite;
+}
+
+@keyframes steam-rise {
+  0% { transform: translateY(0); opacity: 0.8; }
+  50% { opacity: 0.4; }
+  100% { transform: translateY(-16px); opacity: 0; }
+}
+
+.anim-chopsticks {
+  animation: chop-noodle 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes chop-noodle {
+  from { transform: translateY(0); }
+  to { transform: translateY(-14px); }
+}
+
+.anim-cat-bop {
+  animation: cat-groove 0.5s steps(2) infinite alternate;
+  transform-origin: 50% 100%;
+}
+
+@keyframes cat-groove {
+  from { transform: translateY(0) rotate(-2deg); }
+  to { transform: translateY(-6px) rotate(2deg); }
+}
+
+.anim-floating-beats {
+  animation: notes-float 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes notes-float {
+  from { transform: translateY(0); opacity: 0.7; }
+  to { transform: translateY(-8px); opacity: 1; }
+}
+
+.anim-pixel-dancer {
+  animation: dancer-bounce 0.4s steps(2) infinite alternate;
+}
+
+@keyframes dancer-bounce {
+  from { transform: translateY(0); }
+  to { transform: translateY(-8px); }
+}
+
+.anim-knife {
+  animation: knife-slice 1.2s steps(4) infinite;
+}
+
+@keyframes knife-slice {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-10px, 16px); }
+}
+
+.anim-falling-cubes {
+  animation: cubes-cascade 0.8s steps(2) infinite alternate;
+}
+
+@keyframes cubes-cascade {
+  from { transform: translateY(0); }
+  to { transform: translateY(4px); }
+}
+
+.anim-sparkle {
+  animation: sparkle-twinkle 1s steps(2) infinite alternate;
+}
+
+@keyframes sparkle-twinkle {
+  from { opacity: 0.4; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1.1); }
 }
 
 /* ==========================================================================
@@ -1353,6 +1475,12 @@
 /* The scene is a fixed size, so it's zoomed to keep the bed and phone on screen together. */
 
 @media (max-height: 860px) {
+  .stage3-viewport {
+    zoom: 0.8;
+  }
+}
+
+@media (max-width: 900px) {
   .stage3-viewport {
     zoom: 0.8;
   }
