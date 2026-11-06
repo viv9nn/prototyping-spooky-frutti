@@ -35,10 +35,10 @@ const NOT_LOOKING_SUBSTATES: NotLookingSubState[] = [
 export default function Stage3Game() {
   // Game state
   const [phase, setPhase] = useState<GamePhase>("INSTRUCTION");
-  const [countdown, setCountdown] = useState<number>(STAGE_3_CONFIG.instructionCountdownSec);
   const [timeLeft, setTimeLeft] = useState<number>(STAGE_3_CONFIG.stageLengthSec);
   const [suspicion, setSuspicion] = useState<number>(0);
   const [livesLeft, setLivesLeft] = useState<number>(3);
+  const livesLeftRef = useRef(3);
   const [timesCaught, setTimesCaught] = useState<number>(0);
   const [timesSpotted, setTimesSpotted] = useState<number>(0);
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
@@ -110,6 +110,7 @@ export default function Stage3Game() {
     setSubState("PLAYER");
     setSpeechBubble(null);
     if (!preserveLives) {
+      livesLeftRef.current = 3;
       setLivesLeft(3);
     }
   }, [clearAllTimers]);
@@ -123,36 +124,37 @@ export default function Stage3Game() {
     triggerGirlfriendSpeech("GIVE ME THAT PHONE! 📱💢", 2200);
 
     setTimeout(() => {
-      setLivesLeft((prevLives) => {
-        const remaining = prevLives - 1;
-        if (remaining <= 0) {
-          setPhase("RECAP");
-        } else {
-          resetStageState(true);
-          setPhase("PLAYING");
-        }
-        return remaining;
-      });
+      const remaining = livesLeftRef.current - 1;
+      livesLeftRef.current = remaining;
+      setLivesLeft(remaining);
+      if (remaining <= 0) {
+        setPhase("RECAP");
+      } else {
+        resetStageState(true);
+        setPhase("PLAYING");
+      }
     }, 1800);
   }, [clearAllTimers, resetStageState, triggerGirlfriendSpeech]);
 
-  // Handle CAUGHT penalty (+40 Suspicion)
+  // Handle CAUGHT penalty (a risky banner she reads)
   const handleCaught = useCallback(
     (dialogueText: string) => {
       playCaughtSound();
       setTimesCaught((prev) => prev + 1);
       triggerGirlfriendSpeech(dialogueText, 3200);
 
-      setSuspicion((prev) => {
-        const next = Math.min(100, prev + STAGE_3_CONFIG.caughtPenalty);
-        if (next >= 100) {
-          handleFailure();
-        }
-        return next;
-      });
+      setSuspicion((prev) => Math.min(100, prev + STAGE_3_CONFIG.caughtPenalty));
     },
-    [handleFailure, triggerGirlfriendSpeech]
+    [triggerGirlfriendSpeech]
   );
+
+  // React can run state updaters twice (it always does in development), so failing
+  // happens here, once per change, rather than inside a setSuspicion updater.
+  useEffect(() => {
+    if (phase !== "PLAYING" || suspicion < 100) return;
+    const failTimer = setTimeout(handleFailure, 0);
+    return () => clearTimeout(failTimer);
+  }, [phase, suspicion, handleFailure]);
 
   // Spawn a notification banner
   const spawnNotification = useCallback(() => {
@@ -274,7 +276,7 @@ export default function Stage3Game() {
     if (phase === "RECAP") finishChapter("phone", 0);
   }, [phase]);
 
-  // Handle SPOTTED penalty (+15 Suspicion when touching/flicking banner while she's looking)
+  // Handle SPOTTED penalty (touching a banner while she's looking)
   const handleGrabNotification = useCallback(() => {
     if (stateRef.current.gazeState === "LOOKING") {
       const now = performance.now();
@@ -284,36 +286,15 @@ export default function Stage3Game() {
         setTimesSpotted((prev) => prev + 1);
         triggerGirlfriendSpeech("WHAT ARE YOU DOING?? Why are you touching your screen?!", 2800);
 
-        setSuspicion((prev) => {
-          const next = Math.min(100, prev + STAGE_3_CONFIG.spottedPenalty);
-          if (next >= 100) {
-            handleFailure();
-          }
-          return next;
-        });
+        setSuspicion((prev) => Math.min(100, prev + STAGE_3_CONFIG.spottedPenalty));
       }
     }
-  }, [handleFailure, triggerGirlfriendSpeech]);
+  }, [triggerGirlfriendSpeech]);
 
   // Handle banner dismissal
   const handleDismissNotification = useCallback((instanceId: string) => {
     setNotifications((prev) => prev.filter((n) => n.instanceId !== instanceId));
   }, []);
-
-  // Instruction 3s Countdown Loop
-  useEffect(() => {
-    if (phase !== "INSTRUCTION") return;
-    const timer = setTimeout(() => {
-      setCountdown((c) => {
-        if (c <= 1) {
-          setPhase("PLAYING");
-          return 0;
-        }
-        return c - 1;
-      });
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [phase]);
 
   // Main 60-Second Game Loop
   useEffect(() => {
@@ -345,14 +326,12 @@ export default function Stage3Game() {
 
       setNotifications((prevList) => {
         let caughtTriggered = false;
-        let caughtDialogue = "Who's Jessica??!";
 
         const updated = prevList.map((notif) => {
           if (notif.type === "risky" && !notif.hasBeenCaught) {
             const nextDuration = notif.seenByGirlfriendDuration + 0.1;
             if (nextDuration >= STAGE_3_CONFIG.readTimeSec && !caughtTriggered) {
               caughtTriggered = true;
-              caughtDialogue = notif.caughtDialogue || `WHO'S ${notif.sender.toUpperCase()}?!`;
               return {
                 ...notif,
                 seenByGirlfriendDuration: nextDuration,
@@ -364,10 +343,6 @@ export default function Stage3Game() {
           return notif;
         });
 
-        if (caughtTriggered) {
-          handleCaught(caughtDialogue);
-        }
-
         return updated;
       });
     }, 100);
@@ -378,7 +353,18 @@ export default function Stage3Game() {
       clearInterval(readCheckInterval);
       clearAllTimers();
     };
-  }, [phase, spawnNotification, handleCaught, clearAllTimers]);
+  }, [phase, spawnNotification, clearAllTimers]);
+
+  // Each banner she reads counts as caught exactly once, even if React reruns the
+  // updater that marked it.
+  const handledCatchesRef = useRef(new Set<string>());
+  useEffect(() => {
+    for (const notif of notifications) {
+      if (!notif.hasBeenCaught || handledCatchesRef.current.has(notif.instanceId)) continue;
+      handledCatchesRef.current.add(notif.instanceId);
+      handleCaught(notif.caughtDialogue || `WHO'S ${notif.sender.toUpperCase()}?!`);
+    }
+  }, [notifications, handleCaught]);
 
   // Stage Clear Condition (survived 60 seconds with Suspicion < 100)
   useEffect(() => {
@@ -584,14 +570,14 @@ export default function Stage3Game() {
         </div>
       )}
 
-      {/* OVERLAY: Instruction Card (3s countdown before start) */}
+      {/* OVERLAY: Instruction Card. The game waits here until the player presses Start. */}
       {phase === "INSTRUCTION" && (
         <div className="stage3-modal-backdrop">
           <div className="instruction-card window">
             <h2 className="instruction-chapter">LATE-NIGHT TIKTOK</h2>
             <div className="instruction-hero-text">
               <p className="instruction-main-rule">
-                GRAB THE NOTIFICATION AND FLICK IT UP.
+                DOUBLE-CLICK RISKY NOTIFICATIONS TO HIDE THEM.
                 <br />
                 <span className="rule-highlight">DON&apos;T LET HER SEE.</span>
               </p>
@@ -601,10 +587,10 @@ export default function Stage3Game() {
               <div className="demo-banner window">
                 <span className="demo-icon">💬</span>
                 <span>Jessica: miss you already 😘</span>
-                <span className="demo-flick-arrow">⬆️</span>
+                <span className="demo-flick-arrow">👆👆</span>
               </div>
               <p className="demo-subtext">
-                Flick upward quickly with your mouse, trackpad, or finger.
+                Double-click with your mouse, or double-tap with your finger.
               </p>
             </div>
 
@@ -614,24 +600,22 @@ export default function Stage3Game() {
                 <span>Wait for safe windows when she isn&apos;t looking at the phone.</span>
               </div>
               <div className="rule-item">
-                <span className="rule-badge badge-danger">🚨 CAUGHT: +40</span>
+                <span className="rule-badge badge-danger">🚨 CAUGHT: +{STAGE_3_CONFIG.caughtPenalty}</span>
                 <span>Leaving a risky banner visible while she looks.</span>
               </div>
               <div className="rule-item">
-                <span className="rule-badge badge-warning">🖐️ SPOTTED: +15</span>
-                <span>Flicking or holding banners while she is looking.</span>
+                <span className="rule-badge badge-warning">🖐️ SPOTTED: +{STAGE_3_CONFIG.spottedPenalty}</span>
+                <span>Clicking banners while she is looking.</span>
               </div>
             </div>
 
             <div className="instruction-countdown-box">
-              <span className="countdown-label">STARTING IN</span>
-              <span className="countdown-number">{countdown}</span>
               <button
                 type="button"
                 className="vn-choice skip-countdown-btn"
                 onClick={() => setPhase("PLAYING")}
               >
-                Start Now ▶
+                Start ▶
               </button>
             </div>
           </div>
@@ -671,8 +655,8 @@ export default function Stage3Game() {
               <div className="recap-tip window">
                 <span className="tip-num">2</span>
                 <div>
-                  <strong>Flick Fast and Upward</strong>
-                  <p>Short, quick upward swipes work best on trackpads, mice, and touchscreens.</p>
+                  <strong>Double-Click Quickly</strong>
+                  <p>Two fast clicks or taps on a banner hide it. Do it while she&apos;s looking away.</p>
                 </div>
               </div>
               <div className="recap-tip window">

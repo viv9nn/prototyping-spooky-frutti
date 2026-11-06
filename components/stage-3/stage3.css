@@ -734,6 +734,14 @@
   justify-content: center;
 }
 
+/* The video art has no size of its own, so it fills the video stage. */
+.tiktok-scene,
+.pixel-video-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 /* TikTok Sidebar */
 .tiktok-sidebar {
   position: absolute;

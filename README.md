@@ -8,11 +8,22 @@ Run it with `npm install`, then `npm run dev`, and open http://localhost:3000.
 
 | # | Chapter | Slug | What it is |
 | --- | --- | --- | --- |
-| 1 | Dress to Impress | `dress-up` | Catch clean clothes for Mr. Honeycrisp; bad grabs and slow finishes cost points |
-| 2 | Hold It In | `first-date` | First date where you hold in a fart while talking |
+| 1 | Dress to Impress | `dress-up` | Catch clean clothes for Mr. Honeycrisp before your date |
+| 2 | Hold It In | `first-date` | Get through the first date's conversation without farting |
 | 3 | Late-Night TikTok | `phone` | Flick away risky notifications before Miss Oishii sees them |
 | 4 | Odd Jobs | `job` | Earn the money that pays for the proposal |
 | 5 | The Proposal | `proposal` | Finale. Plan five tasks, then watch the proposal unfold |
+
+## How each game scores
+
+Every game saves a score from 0 to 100, and only the best one counts.
+
+| Game | Score | Code |
+| --- | --- | --- |
+| Dress to Impress | 100, minus 15 per bad grab and 1 per second after 45 seconds | `components/dress-up/DressUpGame.tsx` |
+| Hold It In | 100, minus 15 per fart and 10 per ignored line. Reaching 0 ends the date | `app/chapters/first-date/HoldGame.tsx` |
+| Late-Night TikTok | 100 minus final suspicion. Getting caught on all 3 tries scores 0 | `components/stage-3/Stage3Game.tsx` |
+| Odd Jobs | Money earned in a night of 3 hustles, where $1,000 scores 100 | `public/games/side-hustle/index.html` |
 
 Chapter names are working titles. Change them in `lib/chapters.ts`.
 
@@ -85,21 +96,21 @@ import { finishChapter } from "@/lib/progress";
 finishChapter("dress-up", 85);
 ```
 
-## Building Odd Jobs
+## How Odd Jobs connects
 
-Call `addMoney` with what the player earned, as well as `finishChapter`:
+The game is a plain HTML file, `public/games/side-hustle/index.html`, shown in a frame by `app/chapters/job/OddJobsGame.tsx`. The frame can't write the site's saves itself, so it sends messages that `OddJobsGame.tsx` handles:
 
-```tsx
-import { addMoney } from "@/lib/wallet";
+| Message | What the site does |
+| --- | --- |
+| `{ type: "money", amount }` | Adds the amount to the wallet, or spends it if it's negative |
+| `{ type: "finish", score }` | Saves the night's score with `finishChapter` |
+| `{ type: "leave" }` | Returns to the hub |
 
-addMoney(250); // false, and changes nothing, if the amount isn't a positive whole number
-```
-
-The game itself is a plain HTML file, `public/games/side-hustle/index.html`, shown in a frame by `app/chapters/job/OddJobsGame.tsx`. One heart buys a night of 3 hustles. Each hustle's `rate` and the `SCORE_TARGET` constant in that file set what it pays and scores.
+One heart buys a night of 3 hustles, and the night is saved so a refresh resumes it. Each hustle's `rate` and the `SCORE_TARGET` constant in that file set what it pays and scores.
 
 ## Building the finale
 
-Wrap The Proposal in `ChapterGate` with `slug="proposal"`. It costs no hearts and keeps players out until chapters 1 to 4 all have a score.
+The Proposal is built in `app/chapters/proposal/`. It's wrapped in `ChapterGate` with `slug="proposal"`, which costs no hearts and keeps players out until chapters 1 to 4 all have a score.
 
 ```tsx
 "use client";
