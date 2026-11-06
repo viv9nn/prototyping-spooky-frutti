@@ -2,7 +2,6 @@
 
 import React, { useRef, useState, useCallback } from "react";
 import { ActiveNotification } from "./notificationsData";
-import { STAGE_3_CONFIG } from "./config";
 import { playSwooshSound, playSnapBackSound } from "./audio";
 
 interface NotificationBannerProps {
@@ -24,23 +23,41 @@ export default function NotificationBanner({
   const [isDismissing, setIsDismissing] = useState(false);
 
   const startYRef = useRef<number>(0);
+  const startTimeRef = useRef<number>(0);
+  const maxUpwardRef = useRef<number>(0);
   const pointerHistoryRef = useRef<Array<{ y: number; time: number }>>([]);
   const bannerRef = useRef<HTMLDivElement>(null);
+
+  // Instant smooth dismiss trigger
+  const triggerDismiss = useCallback(() => {
+    if (isDismissing) return;
+    setIsDismissing(true);
+    setIsDragging(false);
+    onGrab();
+    playSwooshSound();
+    setOffsetY(-520);
+
+    setTimeout(() => {
+      onDismiss(notification.instanceId);
+    }, 200);
+  }, [isDismissing, onGrab, onDismiss, notification.instanceId]);
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (isDismissing) return;
       if (e.button !== 0) return; // primary button only
 
-      e.preventDefault();
       try {
         e.currentTarget.setPointerCapture(e.pointerId);
       } catch {
         // fallback
       }
 
+      const now = performance.now();
       startYRef.current = e.clientY;
-      pointerHistoryRef.current = [{ y: e.clientY, time: performance.now() }];
+      startTimeRef.current = now;
+      maxUpwardRef.current = 0;
+      pointerHistoryRef.current = [{ y: e.clientY, time: now }];
       setIsDragging(true);
       onGrab();
     },
@@ -52,16 +69,21 @@ export default function NotificationBanner({
       if (!isDragging || isDismissing) return;
 
       const rawDeltaY = e.clientY - startYRef.current;
-      // Allow rapid upward dragging; apply high resistance if dragging downward
-      const clampedDeltaY = rawDeltaY < 0 ? rawDeltaY : rawDeltaY * 0.08;
+      // Allow snappy upward dragging with 1.15x feel; resist downward dragging
+      const clampedDeltaY = rawDeltaY < 0 ? rawDeltaY * 1.15 : Math.min(12, rawDeltaY * 0.06);
 
       setOffsetY(clampedDeltaY);
+
+      const upwardSoFar = -clampedDeltaY;
+      if (upwardSoFar > maxUpwardRef.current) {
+        maxUpwardRef.current = upwardSoFar;
+      }
 
       const now = performance.now();
       const history = pointerHistoryRef.current;
       history.push({ y: e.clientY, time: now });
 
-      const filtered = history.filter((pt) => now - pt.time <= 80);
+      const filtered = history.filter((pt) => now - pt.time <= 120);
       pointerHistoryRef.current = filtered.length > 0 ? filtered : [{ y: e.clientY, time: now }];
     },
     [isDragging, isDismissing]
@@ -87,43 +109,46 @@ export default function NotificationBanner({
       const dy = oldest.y - e.clientY; // upward distance travelled in recent ms
 
       const upwardVelocity = dy / dt; // px / ms
-      const upwardDistance = startYRef.current - e.clientY;
+      const totalUpwardDistance = startYRef.current - e.clientY;
+      const duration = now - startTimeRef.current;
 
+      // Ultra-forgiving & smooth flick conditions:
+      // 1. Any upward movement of >= 24px
+      // 2. Or quick flick with velocity >= 0.25 px/ms
+      // 3. Or peak upward drag was >= 30px
+      // 4. Or quick tap (duration < 280ms, distance < 10px) on the card
       const isFlickSuccess =
-        upwardVelocity >= STAGE_3_CONFIG.flickMinVelocity &&
-        upwardDistance >= STAGE_3_CONFIG.flickMinDistancePx;
+        totalUpwardDistance >= 24 ||
+        upwardVelocity >= 0.25 ||
+        maxUpwardRef.current >= 30 ||
+        (duration < 280 && Math.abs(totalUpwardDistance) < 10);
 
       if (isFlickSuccess) {
-        setIsDismissing(true);
-        playSwooshSound();
-        setOffsetY(-360);
-
-        setTimeout(() => {
-          onDismiss(notification.instanceId);
-        }, 180);
+        triggerDismiss();
       } else {
-        // Snap back to normal resting place
+        // Snap back smoothly
         setOffsetY(0);
-        if (upwardDistance > 8) {
+        if (totalUpwardDistance > 8) {
           playSnapBackSound();
         }
       }
     },
-    [isDragging, isDismissing, notification.instanceId, onDismiss]
+    [isDragging, isDismissing, triggerDismiss]
   );
 
-  // Stack styling: stacked cards sit just below each other with stepped depth
-  const stackTop = 10 + index * 70;
-  const scale = Math.max(0.9, 1 - index * 0.04);
-  const opacity = Math.max(0.85, 1 - index * 0.08);
+  // Stack styling: stacked cards sit nicely below each other with stepped depth
+  const stackTop = 10 + index * 76;
+  const scale = Math.max(0.92, 1 - index * 0.035);
+  const opacity = Math.max(0.88, 1 - index * 0.06);
 
-  const transformStyle = `translateY(${offsetY}px) scale(${scale})`;
+  const rotation = isDragging ? Math.max(-3, Math.min(3, offsetY * 0.03)) : 0;
+  const transformStyle = `translateY(${offsetY}px) scale(${scale}) rotate(${rotation}deg)`;
 
   const transitionStyle = isDragging
     ? "none"
     : isDismissing
-    ? "transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.18s ease-out"
-    : "transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.25), box-shadow 0.2s ease";
+    ? "transform 0.22s cubic-bezier(0.15, 0.85, 0.35, 1.2), opacity 0.2s ease-out"
+    : "transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1), box-shadow 0.2s ease";
 
   const appTitle = notification.appLabel || "Messages";
 
@@ -132,7 +157,7 @@ export default function NotificationBanner({
       ref={bannerRef}
       role="button"
       tabIndex={0}
-      aria-label={`Notification from ${notification.sender}: ${notification.message}. Flick up to dismiss.`}
+      aria-label={`Notification from ${notification.sender}: ${notification.message}. Click or flick up to dismiss.`}
       className={`notif-banner-card window ${
         notification.type === "risky" ? "notif-risky" : "notif-harmless"
       } ${isDragging ? "notif-dragging" : ""}`}
@@ -150,7 +175,7 @@ export default function NotificationBanner({
       onPointerUp={handlePointerUpOrCancel}
       onPointerCancel={handlePointerUpOrCancel}
     >
-      {/* Top Header Row (From screenshot: [i] ALERT [Calendar] NOW) */}
+      {/* Top Header Row: [i] ALERT [App] NOW */}
       <div className="notif-header-row">
         <div className="notif-header-left">
           <span className="notif-icon-badge">
@@ -167,12 +192,20 @@ export default function NotificationBanner({
         <span className="notif-message-text">{notification.message}</span>
       </div>
 
-      {/* Upward Flick Hint (From screenshot: ▲ ▲ FLICK UP ▲ ▲) */}
-      <div className="notif-flick-hint">
+      {/* Interactive Flick / Dismiss Pill Button */}
+      <button
+        type="button"
+        className="notif-flick-btn"
+        onClick={(e) => {
+          e.stopPropagation();
+          triggerDismiss();
+        }}
+        title="Click or Flick Up to Dismiss"
+      >
         <span className="hint-arrow">▲ ▲</span>
-        <span className="hint-text">FLICK UP</span>
+        <span className="hint-text">FLICK UP / CLICK TO DISMISS</span>
         <span className="hint-arrow">▲ ▲</span>
-      </div>
+      </button>
     </div>
   );
 }

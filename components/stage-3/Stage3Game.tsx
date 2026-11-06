@@ -300,6 +300,23 @@ export default function Stage3Game() {
     setNotifications((prev) => prev.filter((n) => n.instanceId !== instanceId));
   }, []);
 
+  // Keyboard shortcut to dismiss the top notification smoothly with [Space], [▲], [W], or [Enter]
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (stateRef.current.phase !== "PLAYING") return;
+      if (e.code === "ArrowUp" || e.code === "KeyW" || e.code === "Space" || e.code === "Enter") {
+        if (stateRef.current.notifications.length > 0) {
+          e.preventDefault();
+          const topNotif = stateRef.current.notifications[0];
+          handleGrabNotification();
+          handleDismissNotification(topNotif.instanceId);
+        }
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleGrabNotification, handleDismissNotification]);
+
   // Instruction 3s Countdown Loop
   useEffect(() => {
     if (phase !== "INSTRUCTION") return;
@@ -513,6 +530,10 @@ export default function Stage3Game() {
             isGirlfriendLooking={gazeState === "LOOKING"}
             isPhoneSnatched={phase === "GAG_FAIL"}
           />
+          <div className="phone-controls-hint">
+            <span>⚡ DISMISS:</span>
+            <span>SWIPE UP • CLICK • [SPACE] • [▲]</span>
+          </div>
         </div>
       </div>
 
