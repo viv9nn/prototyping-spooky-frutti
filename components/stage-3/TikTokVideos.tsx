@@ -158,12 +158,6 @@ export function RamenVideo() {
           />
         </g>
       </svg>
-
-      {/* Aesthetic Pixel On-Screen TikTok Subtitle Bar */}
-      <div className="pixel-video-caption-pill">
-        <span className="caption-tag">FOODTOK</span>
-        <span className="caption-text">3AM Spicy Cheese Ramen Hack</span>
-      </div>
     </div>
   );
 }
@@ -283,11 +277,6 @@ export function CatVideo() {
           <text x="158" y="152" fill="#ec4899" fontSize="14" fontWeight="bold">♥</text>
         </g>
       </svg>
-
-      <div className="pixel-video-caption-pill">
-        <span className="caption-tag">PETTOK</span>
-        <span className="caption-text">Bro won&apos;t sleep until beat drops</span>
-      </div>
     </div>
   );
 }
@@ -370,11 +359,6 @@ export function DanceVideo() {
           <text x="180" y="70" fill="#f43f5e" fontSize="14">✦</text>
         </g>
       </svg>
-
-      <div className="pixel-video-caption-pill">
-        <span className="caption-tag">DANCETOK</span>
-        <span className="caption-text">Supernova Dance Challenge ✨</span>
-      </div>
     </div>
   );
 }
@@ -443,11 +427,6 @@ export function SoapVideo() {
         <text x="185" y="115" fill="#fde047" fontSize="20">✦</text>
         <text x="110" y="75" fill="#ffffff" fontSize="14">✧</text>
       </svg>
-
-      <div className="pixel-video-caption-pill">
-        <span className="caption-tag">ASMR</span>
-        <span className="caption-text">Satisfying Soap Cubes ASMR</span>
-      </div>
     </div>
   );
 }
@@ -516,11 +495,6 @@ export function GamerVideo() {
         <polygon points="34,38 30,22 44,34" fill="#ec4899" />
         <polygon points="66,38 70,22 56,34" fill="#ec4899" />
       </svg>
-
-      <div className="pixel-video-caption-pill">
-        <span className="caption-tag">GAMING</span>
-        <span className="caption-text">Secret 3AM Arcade Stream 🎮</span>
-      </div>
     </div>
   );
 }
