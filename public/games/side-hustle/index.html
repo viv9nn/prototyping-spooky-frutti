@@ -84,7 +84,7 @@ body {
 /* ------------------------------------------------------------------ core */
 const W = 320, H = 180;
 const cv = document.getElementById('screen');
-const g = cv.getContext('2d');
+let g = cv.getContext('2d');
 const SCALE = cv.width / W;
 g.imageSmoothingEnabled = false;
 g.setTransform(SCALE, 0, 0, SCALE, 0, 0);
@@ -114,6 +114,53 @@ function layer(draw, w = W, h = H) {
   const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
   const r = (a, b, d, e, f) => { x.fillStyle = f; x.fillRect(a | 0, b | 0, d | 0, e | 0); };
   draw(r, x); return c;
+}
+
+/* The site's painting style: colour bands blended with ordered dithering, ink outlines, checker floors. */
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+const dither = (x, y, t) => BAYER[(y & 3) * 4 + (x & 3)] / 16 < t;
+const INK = '#1c1440';
+const SKY_DUSK = ['#3a2d7a', '#6a3f9c', '#b4569f', '#f07f9f', '#ffb38a'];
+const SKY_NIGHT = ['#1f1a42', '#2b2358', '#3a2d7a', '#6a3f9c', '#b4569f'];
+const WALL = ['#2b2358', '#4a2f7f', '#7a3f98', '#c0589f'];
+// Each band holds its colour for half its height, then steps into the next one a quarter at a time.
+function bands(r, x0, y0, w, h, cols) {
+  const n = cols.length - 1;
+  for (let y = 0; y < h; y++) {
+    const f = y / h * n, i = Math.min(n - 1, f | 0), q = Math.floor(Math.max(0, (f - i - .5) * 2) * 4) / 4;
+    for (let x = 0; x < w; x++) r(x0 + x, y0 + y, 1, 1, dither(x0 + x, y0 + y, q) ? cols[i + 1] : cols[i]);
+  }
+}
+// A lit box: ink edge, light face that dithers into shadow on the right.
+function block(r, x, y, w, h, c, d) {
+  r(x, y, w, h, INK);
+  for (let yy = 1; yy < h - 1; yy++) for (let xx = 1; xx < w - 1; xx++) {
+    const q = Math.floor(clamp((xx / w - .5) * 3, 0, 1) * 4) / 4;
+    r(x + xx, y + yy, 1, 1, dither(x + xx, y + yy, q) ? d : c);
+  }
+}
+// The arcade's floor: a checkerboard that widens toward the viewer.
+function floor(r, y0, h, a = '#3a2f78', b = '#5a4aa0') {
+  for (let y = 0; y < h; y++) {
+    const d = (y + 1) / h, z = .25 + d * .75, row = Math.floor(Math.log(z) * 9);
+    for (let x = 0; x < W; x++) r(x, y0 + y, 1, 1, ((row + Math.floor((x - W / 2) / (22 * z))) & 1) ? a : b);
+  }
+  r(0, y0, W, 1, INK);
+}
+// The park's sun: a pale disc cut by horizontal gaps.
+function sun(r, cx, cy, rad, gap) {
+  for (let y = -rad; y <= 0; y++) for (let x = -rad; x <= rad; x++) if (x * x + y * y <= rad * rad) r(cx + x, cy + y, 1, 1, (y < -rad / 3 || (-y) % 5 !== 2) ? '#fff3c0' : gap);
+}
+// A skyline of shaded towers with lit windows, standing on `base`.
+function skyline(r, rn, base, lo, hi, cols) {
+  let x = -rn() * 10 | 0;
+  while (x < W) {
+    const w = 26 + rn() * 30 | 0, h = lo + rn() * (hi - lo) | 0, [c, d] = cols[rn() * cols.length | 0];
+    block(r, x, base - h, w, h + 1, c, d);
+    r(x + 1, base - h + 1, w - 2, 1, '#7a6ad0');
+    for (let wy = base - h + 6; wy < base - 6; wy += 8) for (let wx = x + 4; wx < x + w - 6; wx += 7) r(wx, wy, 3, 4, rn() < .45 ? '#ffe680' : INK);
+    x += w - 1;
+  }
 }
 
 /* ---------------------------------------------------------------- text, in the site's font */
@@ -316,10 +363,33 @@ const MINI = sprite([
   '..KKKKKKK..'
 ], HEAD_PAL);
 
+const baked = new Map();
+// Draws a sprite once into its own canvas with an ink outline and a dithered shadow on its right side.
+function bake(key, w, h, ox, oy, shadeFrom, draw) {
+  let c = baked.get(key);
+  if (c) return c;
+  c = layer(() => {}, w, h);
+  const main = g; g = c.getContext('2d'); draw(ox, oy); g = main;
+  const x = c.getContext('2d'), im = x.getImageData(0, 0, w, h), d = im.data, solid = (i, j) => i >= 0 && j >= 0 && i < w && j < h && d[(j * w + i) * 4 + 3] > 0;
+  const edge = [];
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+    const k = (j * w + i) * 4;
+    if (!solid(i, j)) { if (solid(i - 1, j) || solid(i + 1, j) || solid(i, j - 1) || solid(i, j + 1)) edge.push(k); continue; }
+    const q = Math.floor(clamp((i - ox - 1) / 6, 0, 1) * 4) / 4;
+    if (j >= oy + shadeFrom && dither(i, j, q)) { d[k] *= .72; d[k + 1] *= .66; d[k + 2] *= .82; }
+  }
+  edge.forEach(k => { d[k] = 0x1c; d[k + 1] = 0x14; d[k + 2] = 0x40; d[k + 3] = 255; });
+  x.putImageData(im, 0, 0);
+  baked.set(key, c);
+  return c;
+}
 function frutti(x, y, o = {}) {
-  x = Math.round(x); y = Math.round(y);
   const st = o.step ? (Math.floor(o.step * 8) % 2) : -1;
-  const lL = st === 0 ? 1 : 0, lR = st === 1 ? 1 : 0, fit = o.outfit;
+  const key = 'f' + (o.outfit || '') + st;
+  g.drawImage(bake(key, 48, 56, 24, 50, -17, (bx, by) => fruttiRaw(bx, by, o.outfit, st)), Math.round(x) - 24, Math.round(y) - 50);
+}
+function fruttiRaw(x, y, fit, st) {
+  const lL = st === 0 ? 1 : 0, lR = st === 1 ? 1 : 0;
   const LOOK = {
     deal: ['#2f3346', '#23242f'], fraud: ['#22304f', '#1a2640'], heist: ['#e8e8f0', '#15151f'],
     pimp: ['#6d2bb0', '#4c1a85'], gamble: ['#16161f', '#16161f']
@@ -382,8 +452,11 @@ function npcSprite(kind) {
   return npcCache[kind] = sprite(SHAPES[f[0]], { K: OUT, b: f[1], d: f[2], h: f[3], E: '#120810', m: '#3a0a18' });
 }
 function npc(kind, x, y, t = 0, o = {}) {
-  x = Math.round(x); y = Math.round(y);
   const s = t ? Math.floor(t * 8) % 2 : 0;
+  const key = 'n' + kind + s + (o.clip ? 'c' : '') + (o.mad ? 'm' : '') + (o.shades ? 's' : '') + (o.cap ? 'p' : '') + (o.hat || '');
+  g.drawImage(bake(key, 32, 28, 14, 24, -15, (bx, by) => npcRaw(kind, bx, by, s, o)), Math.round(x) - 14, Math.round(y) - 24);
+}
+function npcRaw(kind, x, y, s, o) {
   R(x - 3, y - 4, 1, 3 + s, '#f2d4b4'); R(x + 2, y - 4, 1, 4 - s, '#f2d4b4');
   R(x - 5, y - 1 - (s ? 0 : 1), 4, 2, '#2a1a22'); R(x + 1, y - 1 - (s ? 1 : 0), 4, 2, '#2a1a22');
   g.drawImage(npcSprite(kind), x - 6, y - 15);
@@ -453,30 +526,25 @@ function topTile(k, x, y, done) {
 }
 const DOG_BG = layer(r => {
   const rn = seeded(11);
-  for (let y = 0; y < 120; y++) r(0, y, W, 1, y < 34 ? '#2c2266' : y < 62 ? '#5f3f97' : y < 90 ? '#b5608f' : '#e8b9a0');
-  for (let y = -9; y <= 9; y++) for (let x = -9; x <= 9; x++) if (x * x + y * y <= 81 && (x - 4) ** 2 + (y + 2) ** 2 > 56) r(44 + x, 22 + y, 1, 1, '#ffeeb0');
-    let x = 0;
-  while (x < W) {
-    const w = 34 + rn() * 34 | 0, h = 40 + rn() * 62 | 0, c = pick2(rn, ['#46223f', '#51296c', '#2c2266', '#5b3176', '#463289']);
-    r(x, 118 - h, w, h, c); r(x, 118 - h, w, 3, '#00000033');
-    for (let wy = 118 - h + 8; wy < 108; wy += 12) for (let wx = x + 5; wx < x + w - 8; wx += 11) r(wx, wy, 7, 8, rn() < .4 ? '#ffd87a' : '#2c2266');
-    x += w;
-  }
-  r(0, 118, W, 30, '#7f4d9f'); for (let i = 0; i < W; i += 28) r(i, 118, 1, 30, '#5f3f97');
-  r(0, 146, W, 2, '#e8b9a0'); r(0, 148, W, 32, '#2c2266');
-  for (let i = 8; i < W; i += 36) r(i, 162, 18, 2, '#e8d868');
+  bands(r, 0, 0, W, 118, SKY_DUSK);
+  sun(r, 92, 100, 26, '#f07f9f');
+  skyline(r, rn, 118, 30, 92, [['#4b3a8c', '#3a2a78'], ['#54409c', '#3a2a78'], ['#4a2f7f', '#2b2358']]);
+  floor(r, 118, 28);
+  r(0, 145, W, 2, '#f28aa6'); r(0, 147, W, 1, INK);
+  r(0, 148, W, 32, '#2b2358'); for (let y = 148; y < H; y++) for (let x = 0; x < W; x++) if (dither(x, y, .25)) r(x, y, 1, 1, '#1f1a42');
+  for (let i = 8; i < W; i += 36) r(i, 162, 18, 2, '#ffe680');
 });
 function pick2(rn, a) { return a[Math.floor(rn() * a.length)]; }
 function drawCart(t) {
   // awning
-  R(189, 68, 2, 40, '#555'); R(273, 68, 2, 40, '#555');
+  R(188, 68, 4, 40, INK); R(189, 68, 2, 40, '#d8d4f0'); R(272, 68, 4, 40, INK); R(273, 68, 2, 40, '#d8d4f0');
   R(180, 60, 104, 12, OUT);
   for (let i = 0; i < 13; i++) { R(181 + i * 8, 61, 8, 10, i % 2 ? '#f4ecd8' : '#ad2c4a'); R(181 + i * 8, 71, 8, 2, i % 2 ? '#f4ecd8' : '#ad2c4a'); }
   // cart body
   R(186, 110, 92, 30, OUT); R(187, 111, 90, 28, '#ad2c4a'); R(187, 111, 90, 4, '#e8b9a0');
   text('DOGS', 232, 120, '#fdfbff', { s: 2, c: 1, sh: '#46081f' });
   R(182, 106, 100, 5, OUT); R(183, 107, 98, 3, '#d8d8e0');
-  R(194, 140, 12, 8, OUT); R(196, 142, 8, 4, '#555'); R(258, 140, 12, 8, OUT); R(260, 142, 8, 4, '#555');
+  R(194, 140, 12, 8, INK); R(196, 142, 8, 4, '#5a4aa0'); R(258, 140, 12, 8, INK); R(260, 142, 8, 4, '#5a4aa0');
 }
 function drawDog(x, y, tops) {
   R(x - 2, y, 28, 8, OUT); R(x - 1, y + 1, 26, 6, '#e8b860'); R(x + 1, y - 2, 22, 6, OUT); R(x + 2, y - 1, 20, 4, '#b5482c');
@@ -553,7 +621,7 @@ function gameDogs(run) {
         R(bx + 2, 105, bw - 4, 3, '#ccc'); R(bx + 2, 105, (bw - 4) * clamp(front.pat / front.max, 0, 1), 3, front.pat / front.max < .35 ? '#e0343c' : '#4cb050');
       }
       // key strip
-      R(0, 165, W, 15, '#000a');
+      hudStrip(164, 16);
       TOPK.forEach((k, i) => { const x = 8 + i * 78; topTile(k, x, 165 - 0, false); text(TOPS[k].name, x + 18, 170, held[k] ? '#ffe680' : '#fff'); });
       if (streak > 1) text('X' + (1 + Math.min(streak, 10) * .1).toFixed(1), 314, 170, '#ffe680', { r: 1 });
     }
@@ -578,22 +646,31 @@ const open = (x, y) => y >= 0 && y < 10 && x >= 0 && x < 20 && MAP[y][x] === '.'
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const DEAL_BG = layer(r => {
   const rn = seeded(77);
-  r(0, 0, W, H, '#20233a');
+  r(0, 0, W, H, '#2b2358');
   for (let y = 0; y < 10; y++) for (let x = 0; x < 20; x++) {
     const px = x * TS, py = MY + y * TS;
     if (MAP[y][x] === '.') {
-      r(px, py, TS, TS, '#2b2f49');
-      if ((x + y) % 2 === 0) r(px + 7, py + 7, 2, 2, '#3a3f5e');
-      if (rn() < .06) r(px + 3, py + 4, 3, 2, '#23263c');
-    } else {
-      const c = ['#46395e', '#3f4a6a', '#5a3c4e'][(x >> 2) % 3];
-      r(px, py, TS, TS, c);
-      if (!open(x, y - 1) ) r(px, py, TS, 0, c); else r(px, py, TS, 2, '#7a6a98');
-      if (open(x, y + 1)) { r(px, py + 11, TS, 5, '#1b1c2e'); r(px + 3, py + 12, 3, 3, rn() < .5 ? '#ffd36a' : '#34384f'); r(px + 10, py + 12, 3, 3, rn() < .3 ? '#ffd36a' : '#34384f'); }
-      if (rn() < .18) { r(px + 4, py + 3, 7, 5, '#2a2340'); r(px + 5, py + 2, 5, 1, '#6a5a88'); }
+      for (let j = 0; j < TS; j++) for (let i = 0; i < TS; i++) r(px + i, py + j, 1, 1, dither(px + i, py + j, .25) ? '#3a2f78' : '#4a3a8e');
+      if ((x + y) % 2 === 0) r(px + 7, py + 7, 2, 2, '#5a4aa0');
     }
   }
-  [[4, 3], [10, 6], [15, 3], [4, 6], [15, 6], [10, 3], [4, 9], [15, 9]].forEach(([x, y]) => { const px = x * TS, py = MY + y * TS; for (let i = 0; i < 4; i++) r(px + 2 + i * 3, py + 1, 2, 3, '#454a6a'); });
+  // each run of building tiles becomes one roof, with its lit front wall facing the street below
+  for (let y = 0; y < 10; y++) {
+    let x = 0;
+    while (x < 20) {
+      if (MAP[y][x] !== '#' || (y > 0 && MAP[y - 1][x] === '#')) { x++; continue; }
+      let w = 0; while (x + w < 20 && MAP[y][x + w] === '#') w++;
+      let h = 0; while (y + h < 10 && MAP[y + h][x] === '#') h++;
+      const px = x * TS, py = MY + y * TS, pw = w * TS, ph = h * TS, [c, d] = [['#7a3f98', '#4a2f7f'], ['#c0589f', '#7a3f98'], ['#5a4ab0', '#3a2a78']][(x + y) % 3];
+      block(r, px, py, pw, ph - 6, c, d);
+      r(px + 1, py + 1, pw - 2, 1, '#f28aa6');
+      r(px, py + ph - 7, pw, 7, INK); r(px + 1, py + ph - 6, pw - 2, 6, '#2b2358');
+      for (let wx = px + 3; wx < px + pw - 4; wx += 6) r(wx, py + ph - 5, 3, 3, rn() < .45 ? '#ffe680' : '#3a2a78');
+      for (let k = 0; k < w; k++) if (rn() < .5) { const vx = px + k * TS + 4, vy = py + 4 + (rn() * (ph - 18) | 0); r(vx - 1, vy - 1, 8, 6, INK); r(vx, vy, 6, 4, '#d8d4f0'); r(vx, vy + 3, 6, 1, '#8a86c8'); }
+      x += w;
+    }
+  }
+  [[4, 3], [10, 6], [15, 3], [4, 6], [15, 6], [10, 3], [4, 9], [15, 9]].forEach(([x, y]) => { const px = x * TS, py = MY + y * TS; for (let i = 0; i < 4; i++) r(px + 2 + i * 3, py + 1, 2, 3, '#5a4aa0'); });
 });
 function gameDeal(run) {
   const mover = (tx, ty, dir) => ({ tx, ty, nx: tx, ny: ty, p: 0, dir, t: 0 });
@@ -733,42 +810,45 @@ function gameDeal(run) {
       const me = pos(P);
       {
         const mx = Math.round(me.x), my = Math.round(me.y), w = (P.nx !== P.tx || P.ny !== P.ty) ? Math.floor(P.t * 10) % 2 : 0;
-        R(mx - 6, my + 4, 5, 3 - w, '#b9622a'); R(mx + 1, my + 4, 5, 2 + w, '#b9622a');
-        g.drawImage(HEAD, mx - 9, my - 11);
-        R(mx - 8, my - 13, 16, 5, '#2f3346'); R(mx - 8, my - 10, 16, 1, '#454b66'); R(mx - 8, my - 5, 7, 2, '#06060a'); R(mx + 1, my - 5, 7, 2, '#06060a'); R(mx - 1, my - 5, 2, 1, '#06060a');
+        g.drawImage(bake('top' + w, 24, 24, 12, 13, 99, (bx, by) => {
+          R(bx - 6, by + 4, 5, 3 - w, '#cfae68'); R(bx + 1, by + 4, 5, 2 + w, '#cfae68');
+          g.drawImage(HEAD, bx - 9, by - 11);
+          R(bx - 8, by - 13, 16, 5, '#2f3346'); R(bx - 8, by - 10, 16, 1, '#454b66'); R(bx - 8, by - 5, 7, 2, '#06060a'); R(bx + 1, by - 5, 7, 2, '#06060a'); R(bx - 1, by - 5, 2, 1, '#06060a');
+        }), mx - 12, my - 13);
       }
       cops.forEach(c => { const q = pos(c); npc('cop', q.x, q.y + 7, c.t); if (c.chase > 0 && Math.floor(c.t * 8) % 2) { R(q.x - 6, q.y - 13, 4, 2, '#ff3040'); R(q.x + 2, q.y - 13, 4, 2, '#4080ff'); } });
       // stash pips
-      R(0, 171, W, 9, UI.ink); text('STASH', 4, 173, UI.white);
-      for (let i = 0; i < 5; i++) R(30 + i * 6, 173, 5, 5, i < carry ? UI.yellow : '#46406a');
-      if (streak > 1) text('COMBO X' + (1 + Math.min(streak, 8) * .08).toFixed(2), 316, 173, UI.yellow, { r: 1 });
-      if (carry === 0) text('RELOAD AT A DUMPSTER', W / 2, 173, UI.pink, { c: 1 });
+      hudStrip(170, 10); text('STASH', 4, 172, UI.white);
+      for (let i = 0; i < 5; i++) R(30 + i * 6, 173, 5, 5, i < carry ? UI.yellow : UI.ink);
+      if (streak > 1) text('COMBO X' + (1 + Math.min(streak, 8) * .08).toFixed(2), 316, 172, UI.yellow, { r: 1 });
+      if (carry === 0) text('RELOAD AT A DUMPSTER', W / 2, 172, UI.pink, { c: 1 });
     }
   };
 }
 
 /* --- pimp ---------------------------------------------------------- */
-const PIMP_BG = layer((r, x) => {
+const PIMP_BG = layer(r => {
   const rn = seeded(31);
-  for (let y = 0; y < 136; y++) r(0, y, W, 1, y < 40 ? '#1a0a33' : y < 90 ? '#2c0f4a' : '#481660');
-  for (let i = 0; i < 50; i++) r(rn() * W, rn() * 60, 1, 1, '#ffffff66');
-  // storefronts
-  const fronts = [[0, 96, '#2a1848', '#ff8fc0', 'LOUNGE'], [96, 28, '#20143c', '#000', ''], [124, 72, '#32184e', '#40e0ff', 'BIJOU'], [196, 28, '#20143c', '#000', ''], [224, 96, '#2a1848', '#ffe680', 'FURS']];
-  fronts.forEach(([fx, fw, c, neon, label], i) => {
-    r(fx, 34 + i % 2 * 10, fw, 102, c);
-    for (let wy = 44 + i % 2 * 10; wy < 86; wy += 11) for (let wx = fx + 6; wx < fx + fw - 8; wx += 12) r(wx, wy, 7, 7, rn() < .35 ? '#ffd36a' : '#160c2a');
-    if (label) {
-      r(fx + 8, 90, fw - 16, 15, '#120820'); r(fx + 8, 90, fw - 16, 1, neon); r(fx + 8, 104, fw - 16, 1, neon);
-      r(fx + 12, 110, fw - 24, 26, '#160c2a'); r(fx + 13, 111, fw - 26, 24, neon + '30');
+  bands(r, 0, 0, W, 136, SKY_NIGHT);
+  for (let i = 0; i < 40; i++) r(rn() * W, rn() * 50, 1, 1, rn() < .3 ? '#ffe680' : '#fff3c0');
+  const fronts = [[0, 96, '#4a2f7f', '#2b2358', '#ff8fc0'], [95, 30, '#3a2a78', '#1f1a42', ''], [124, 72, '#54409c', '#3a2a78', '#40e0ff'], [195, 30, '#3a2a78', '#1f1a42', ''], [224, 96, '#4a2f7f', '#2b2358', '#ffe680']];
+  fronts.forEach(([fx, fw, c, d, neon], i) => {
+    const top = 34 + i % 2 * 10;
+    block(r, fx, top, fw + 1, 137 - top, c, d);
+    r(fx + 1, top + 1, fw - 1, 1, '#c0589f');
+    for (let wy = top + 10; wy < 86; wy += 11) for (let wx = fx + 6; wx < fx + fw - 8; wx += 12) { r(wx - 1, wy - 1, 9, 9, INK); r(wx, wy, 7, 7, rn() < .35 ? '#ffe680' : '#2b2358'); }
+    if (neon) {
+      r(fx + 8, 90, fw - 16, 15, INK); r(fx + 8, 90, fw - 16, 1, neon); r(fx + 8, 104, fw - 16, 1, neon);
+      r(fx + 11, 109, fw - 22, 28, INK); bands(r, fx + 12, 110, fw - 24, 26, ['#2b2358', '#4a2f7f', '#c0589f']);
     }
   });
-  // doorways
   [110, 210].forEach(d => {
-    r(d - 11, 98, 22, 38, '#6a4a2a'); r(d - 9, 100, 18, 36, '#0c0614'); r(d - 9, 100, 18, 2, '#ffe680'); r(d - 2, 90, 4, 6, '#ffe680');
+    r(d - 12, 97, 24, 40, INK); r(d - 11, 98, 22, 39, '#8a5240'); r(d - 9, 100, 18, 37, '#1f1a42'); r(d - 9, 100, 18, 2, '#ffe680'); r(d - 2, 90, 4, 6, '#ffe680');
   });
-  r(0, 136, W, 22, '#55506a'); for (let i = 0; i < W; i += 22) r(i, 136, 1, 22, '#44405a');
-  r(0, 156, W, 2, '#8a8498'); r(0, 158, W, 22, '#1c1a28');
-  for (let i = 6; i < W; i += 30) r(i, 168, 16, 2, '#c8b850');
+  floor(r, 136, 20);
+  r(0, 155, W, 2, '#f28aa6'); r(0, 157, W, 1, INK);
+  r(0, 158, W, 22, '#1f1a42'); for (let y = 158; y < H; y++) for (let x = 0; x < W; x++) if (dither(x, y, .25)) r(x, y, 1, 1, '#2b2358');
+  for (let i = 6; i < W; i += 30) r(i, 168, 16, 2, '#ffe680');
 });
 function neonSigns(t) {
   const on = n => Math.sin(t * n) > -.8;
@@ -897,33 +977,35 @@ function gamePimp(run) {
         const vis = g.globalAlpha; g.globalAlpha = .25; R(cx + cop.dir * 30 - (cop.dir < 0 ? 44 : 0), cy + 3, 44, 8, '#ffffa0'); g.globalAlpha = vis;
       }
       if (warn) { if (Math.floor(t * 8) % 2) { R(0, 14, W, 11, '#3f5fd8'); text('5-0! COPS COMING. GET IN A DOORWAY', W / 2, 17, '#fff', { c: 1 }); } }
-      // HUD strip
-      text('LOST CREW', 4, 172, '#ff9ad0', { sh: '#000' });
-      for (let i = 0; i < 3; i++) R(46 + i * 7, 172, 5, 5, i < lost ? '#ff4040' : '#3a3650');
-      if (combo > 1) text('STYLE X' + (1 + combo * .25).toFixed(2), 316, 172, '#ffe680', { r: 1, sh: '#000' });
+      hudStrip(168, 12);
+      text('LOST CREW', 4, 171, UI.pink, { sh: UI.ink });
+      for (let i = 0; i < 3; i++) R(52 + i * 7, 173, 5, 5, i < lost ? UI.deep : UI.ink);
+      if (combo > 1) text('STYLE X' + (1 + combo * .25).toFixed(2), 316, 171, UI.yellow, { r: 1, sh: UI.ink });
     }
   };
 }
 
 /* --- heist --------------------------------------------------------- */
 const VAULT_BG = layer(r => {
-  r(0, 0, W, 110, '#38425a');
-  for (let y = 14; y < 110; y += 16) for (let x = (y / 16 | 0) % 2 * 16; x < W; x += 32) { r(x, y, 31, 15, '#414c66'); r(x, y, 31, 1, '#505c78'); r(x + 2, y + 2, 1, 1, '#2a3244'); r(x + 28, y + 12, 1, 1, '#2a3244'); }
-  r(0, 110, W, 70, '#20242f');
-  for (let x = 0; x < W; x += 20) r(x, 110, 1, 70, '#2a2f3d');
-  r(0, 110, W, 2, '#59647f');
+  bands(r, 0, 0, W, 110, WALL);
+  for (let y = 14; y < 110; y += 12) {
+    r(0, y, W, 1, '#2b2358');
+    for (let x = (y / 12 | 0) % 2 * 16; x < W; x += 32) { r(x, y + 1, 1, 11, '#2b2358'); r(x + 1, y + 1, 30, 1, '#ffffff22'); }
+  }
+  floor(r, 110, 70);
   // round vault door, swung open
-  r(10, 26, 72, 84, '#232a3a'); r(14, 30, 64, 80, '#0d101a');
-  r(80, 22, 12, 88, '#7f8aa4'); r(82, 24, 8, 84, '#a0abc4');
+  r(9, 25, 74, 86, INK); r(10, 26, 72, 84, '#3a2f78'); r(14, 30, 64, 80, '#1f1a42');
+  r(79, 21, 14, 90, INK); block(r, 80, 22, 12, 88, '#d8d4f0', '#8a86c8');
+  for (let y = 34; y < 104; y += 14) r(84, y, 4, 4, '#5a4aa0');
 });
 function drawSafe(x, y, state, t) {
   // state: 0 locked, 1 current, 2 open
-  R(x, y, 30, 40, OUT); R(x + 1, y + 1, 28, 38, state === 1 ? '#6a7690' : '#4a5470'); R(x + 1, y + 1, 28, 2, '#8a96b0');
+  R(x, y, 30, 40, INK); R(x + 1, y + 1, 28, 38, state === 1 ? '#8a86c8' : '#5a4aa0'); R(x + 20, y + 1, 9, 38, state === 1 ? '#5a4aa0' : '#3a2f78'); R(x + 1, y + 1, 28, 2, '#d8d4f0');
   if (state === 2) {
-    R(x + 4, y + 5, 22, 30, '#0d0f18');
+    R(x + 4, y + 5, 22, 30, '#1f1a42');
     R(x + 6, y + 27, 8, 8, '#2f7a4a'); R(x + 16, y + 29, 8, 6, '#2f7a4a');
   } else {
-    R(x + 5, y + 8, 20, 22, '#3a4258'); R(x + 11, y + 14, 8, 8, OUT); R(x + 12, y + 15, 6, 6, state === 1 ? '#ffe680' : '#8a96b0');
+    R(x + 5, y + 8, 20, 22, '#3a2f78'); R(x + 11, y + 14, 8, 8, INK); R(x + 12, y + 15, 6, 6, state === 1 ? '#ffe680' : '#8a86c8');
     const a = t * 6; R(x + 15 + Math.cos(a) * 2, y + 18 + Math.sin(a) * 2, 1, 1, OUT);
   }
   if (state === 1) { R(x - 1, y - 2, 32, 1, '#ffe680'); }
@@ -1050,15 +1132,15 @@ function gameHeist(run) {
         }
       } else {
         // road
-        R(0, 0, W, H, '#2a4a30');
+        R(0, 0, W, H, '#3b6a68');
         const off = scroll % 40;
         for (let y = -40 + off; y < H; y += 40) {
-          R(4, y, 40, 26, '#39405a'); R(10, y + 4, 8, 6, '#ffd36a'); R(26, y + 12, 8, 6, '#ffd36a');
-          R(276, y + 10, 40, 26, '#4a3a5a'); R(284, y + 14, 8, 6, '#ffd36a'); R(300, y + 22, 8, 6, '#232338');
-          R(58, y + 20, 8, 8, '#1e6a34'); R(254, y + 2, 8, 8, '#1e6a34');
+          R(3, y - 1, 42, 28, INK); R(4, y, 40, 26, '#7a3f98'); R(4, y, 40, 2, '#c0589f'); R(10, y + 4, 8, 6, '#ffe680'); R(26, y + 12, 8, 6, '#ffe680');
+          R(275, y + 9, 42, 28, INK); R(276, y + 10, 40, 26, '#4a2f7f'); R(276, y + 10, 40, 2, '#7a3f98'); R(284, y + 14, 8, 6, '#ffe680'); R(300, y + 22, 8, 6, '#2b2358');
+          R(57, y + 19, 10, 10, INK); R(58, y + 20, 8, 8, '#4fa877'); R(253, y + 1, 10, 10, INK); R(254, y + 2, 8, 8, '#4fa877');
         }
-        R(70, 0, 180, H, '#33333f'); R(70, 0, 3, H, '#e8e8e8'); R(247, 0, 3, H, '#e8e8e8');
-        for (let l = 1; l < 4; l++) for (let y = -30 + scroll % 30; y < H; y += 30) R(72 + l * 44, y, 2, 14, '#c8c8c8');
+        R(69, 0, 182, H, INK); R(70, 0, 180, H, '#2b2358'); R(70, 0, 3, H, '#f28aa6'); R(247, 0, 3, H, '#f28aa6');
+        for (let l = 1; l < 4; l++) for (let y = -30 + scroll % 30; y < H; y += 30) R(72 + l * 44, y, 2, 14, '#d8d4f0');
         cash.forEach(c => { R(LX(c.lane) - 5, c.y - 5, 10, 10, OUT); R(LX(c.lane) - 4, c.y - 4, 8, 8, '#2f7a4a'); text('$', LX(c.lane) - 1, c.y - 2, '#ffe680'); });
         traf.forEach(c => { if (c.cop) drawCar(LX(c.lane), c.y, '#e8e8f0', '#27389a', { up: true, cop: true }); else drawCar(LX(c.lane), c.y, c.c, '#00000055'); });
         warns.forEach(w => { if (Math.floor(w.t * 12) % 2) { R(LX(w.lane) - 6, 164, 12, 12, '#ff2030'); text('!', LX(w.lane), 167, '#fff'); } });
@@ -1090,16 +1172,14 @@ function drawSig(pts, x, y, col) {
 }
 const FRAUD_BG = layer(r => {
   const rn = seeded(5);
-  r(0, 0, W, H, '#0e1a18');
-  // night window
-  r(6, 18, 84, 60, '#2a3a38'); r(8, 20, 80, 56, '#101c34');
-  let x = 8; while (x < 88) { const w = 8 + rn() * 12 | 0, h = 12 + rn() * 36 | 0; r(x, 76 - h, w, h, '#1a2848'); for (let wy = 78 - h; wy < 74; wy += 5) for (let wx = x + 2; wx < x + w - 2; wx += 4) if (rn() < .4) r(wx, wy, 2, 2, '#ffd36a'); x += w; }
-  r(47, 20, 2, 56, '#2a3a38'); r(8, 47, 80, 2, '#2a3a38');
-  // desk
-  // right wall panel
-  r(98, 14, 222, 166, '#132320');
-  for (let i = 14; i < H; i += 4) r(98, i, 222, 1, '#16291f');
-  r(97, 14, 1, 166, '#2a4a40');
+  bands(r, 0, 0, W, H, WALL);
+  // the window looks out on the same sunset city as the arcade
+  r(4, 16, 88, 64, INK); r(5, 17, 86, 62, '#3a2a78');
+  bands(r, 8, 20, 80, 56, SKY_DUSK);
+  sun(r, 60, 66, 14, '#f07f9f');
+  let x = 8; while (x < 88) { const w = 8 + rn() * 12 | 0, h = 6 + rn() * 20 | 0; r(x, 76 - h, Math.min(w, 88 - x), h, '#2b2358'); for (let wy = 78 - h; wy < 74; wy += 5) for (let wx = x + 2; wx < Math.min(x + w, 88) - 2; wx += 4) if (rn() < .4) r(wx, wy, 1, 1, '#ffe680'); x += w; }
+  r(47, 20, 2, 56, '#3a2a78'); r(8, 47, 80, 2, '#3a2a78');
+  floor(r, 150, 30);
 });
 function gameFraud(run) {
   let target, check = null, fuse = 0, fuseMax = 3.4, n = 0, mult = 1, sinceTarget = 0, anim = 0, t = 0, outcome = null, cool = 0, typeT = 0;
@@ -1163,15 +1243,15 @@ function gameFraud(run) {
         if (Math.floor(t * 6) % 2) { g.globalAlpha = .25; R(8, 20, 80, 56, '#ff2030'); g.globalAlpha = 1; }
       }
       frutti(26, 131 + (Math.floor(typeT * 8) % 2), { outfit: 'fraud' });
-      R(0, 126, 96, 54, '#3a2618'); R(0, 126, 96, 3, '#5e4028'); R(4, 134, 88, 1, '#2a1a10');
+      R(0, 125, 97, 55, INK); R(0, 126, 96, 54, '#8a5240'); R(0, 126, 96, 3, '#c97258'); R(64, 129, 32, 51, '#6a3640'); R(4, 134, 88, 1, '#6a3640');
       // laptop
-      R(44, 123, 44, 3, '#555a68'); R(48, 101, 36, 22, OUT); R(49, 102, 34, 20, '#223'); for (let i = 0; i < 4; i++) R(52, 105 + i * 4, 10 + ((t * 8 + i * 3) % 16), 1, '#6fe89a');
+      R(43, 122, 46, 5, INK); R(44, 123, 44, 3, '#8a86c8'); R(48, 101, 36, 22, INK); R(49, 102, 34, 20, '#24287e'); for (let i = 0; i < 4; i++) R(52, 105 + i * 4, 10 + ((t * 8 + i * 3) % 16), 1, '#6fe89a');
       // target card
-      R(102, 18, 214, 34, OUT); R(103, 19, 212, 32, '#0a1412'); R(103, 19, 212, 1, '#6fe89a');
-      text('TARGET', 107, 22, '#6fe89a');
+      uiWindow(104, 19, 210, 32);
+      text('TARGET', 107, 22, UI.yellow);
       text(target.name, 107, 32, '#fff', { s: 1 }); R(107, 41, 40, 5, BANKS[target.bank]);
-      text('SIG', 186, 22, '#6fe89a'); drawSig(target.sig, 186, 31, '#fff');
-      text('BANK', 244, 22, '#6fe89a'); R(244, 30, 62, 14, BANKS[target.bank]); text('BANK OF ' + 'FRUIT', 275, 34, '#fff', { c: 1 });
+      text('SIG', 186, 22, UI.yellow); drawSig(target.sig, 186, 31, '#fff');
+      text('BANK', 244, 22, UI.yellow); R(244, 30, 62, 14, BANKS[target.bank]); text('BANK OF ' + 'FRUIT', 275, 34, '#fff', { c: 1 });
       // check
       const off = outcome ? (outcome.a === 'cash' ? (0.22 - outcome.t) * 900 : outcome.a === 'shred' ? -(0.22 - outcome.t) * 900 : 0) : clamp((1 - anim * 10), 0, 1) * 60;
       if (cool <= 0 && check) {
@@ -1186,16 +1266,16 @@ function gameFraud(run) {
         text('SIGNED', x + 5, y + 45, '#666');
         drawSig(check.sig, x + 36, y + 46, '#142060');
         R(x + 110, y + 62, 90, 1, '#888');
-        if (outcome && outcome.a === 'shred') { g.globalAlpha = .6; for (let i = 0; i < 20; i++) R(x + i * 10, y, 2, 72, '#132320'); g.globalAlpha = 1; }
+        if (outcome && outcome.a === 'shred') { g.globalAlpha = .6; for (let i = 0; i < 20; i++) R(x + i * 10, y, 2, 72, '#4a2f7f'); g.globalAlpha = 1; }
       }
       // fuse
-      R(106, 136, 206, 4, '#000'); if (!outcome && cool <= 0) R(106, 136, 206 * clamp(fuse / fuseMax, 0, 1), 4, fuse / fuseMax < .3 ? '#ff4040' : '#6fe89a');
+      R(105, 135, 208, 6, INK); if (!outcome && cool <= 0) R(106, 136, 206 * clamp(fuse / fuseMax, 0, 1), 4, fuse / fuseMax < .3 ? '#ff4040' : '#6fe89a');
       // actions
-      R(106, 146, 64, 14, '#6a2020'); text('< SHRED', 138, 150, '#fff', { c: 1 });
-      R(248, 146, 64, 14, '#1e6a3a'); text('CASH >', 280, 150, '#fff', { c: 1 });
-      R(174, 146, 70, 14, '#6a5a10'); text('_ VANISH', 209, 150, '#ffe680', { c: 1 });
-      text('KEEP ' + money(run.take) + ' OR PUSH YOUR LUCK', 209, 167, '#9fe8c0', { c: 1 });
-      if (n > 0) text('STREAK ' + n, 6, 170, '#ffe680');
+      vnChoice(106, 146, 64, 14, false); text('< SHRED', 138, 150, UI.deep, { c: 1 });
+      vnChoice(248, 146, 64, 14, true); text('CASH >', 280, 150, '#3b8a68', { c: 1 });
+      vnChoice(174, 146, 70, 14, false); text('_ VANISH', 209, 150, UI.ink, { c: 1 });
+      text('KEEP ' + money(run.take) + ' OR PUSH YOUR LUCK', 209, 167, UI.white, { c: 1, sh: UI.ink });
+      if (n > 0) text('STREAK ' + n, 6, 167, UI.yellow, { sh: UI.ink });
     }
   };
 }
@@ -1205,9 +1285,9 @@ const REDS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32,
 const colorOf = n => n === 0 ? 'green' : REDS.has(n) ? 'red' : 'black';
 const POCKET = { red: '#d8304a', black: '#1c1440', green: '#2f9a5a' };
 const CASINO_BG = layer(r => {
-  r(0, 0, W, H, '#123f2c');
-  for (let y = 0; y < H; y += 4) for (let x = (y / 4 & 1) * 4; x < W; x += 8) r(x, y, 1, 1, '#17503a');
-  r(0, 14, W, 62, '#1c1440'); r(0, 74, W, 2, '#ffe680'); r(0, 76, W, 2, '#8a6a20');
+  bands(r, 0, 0, W, 80, WALL);
+  for (let y = 78; y < H; y++) for (let x = 0; x < W; x++) r(x, y, 1, 1, dither(x, y, .5 * (y - 78) / (H - 78)) ? '#2c4a68' : '#3b6a68');
+  r(0, 13, W, 64, INK); r(0, 74, W, 2, '#ffe680'); r(0, 76, W, 2, '#b28f4a'); r(0, 78, W, 1, INK);
 });
 function gameGamble(run) {
   const BETS = [{ l: '25%', f: .25 }, { l: '50%', f: .5 }, { l: 'ALL IN', f: 1 }], CALLS = ['red', 'black', 'green'];
@@ -1302,6 +1382,10 @@ function uiWindow(x, y, w, h) {
   R(x - 1, y, w + 2, h, UI.white); R(x, y - 1, w, h + 2, UI.white);
   const bands = 6;
   for (let i = 0; i < bands; i++) R(x, y + i * h / bands, w, h / bands + 1, ['#4449b4', '#3e43a8', '#383c9c', '#323690', '#2c3087', '#24287e'][i]);
+}
+// A slim bar in the message window's colours, for scores along the top or bottom edge.
+function hudStrip(y, h = 13) {
+  R(0, y, W, h, UI.ink); R(0, y + (y ? 2 : 0), W, h - 2, '#2c3087'); R(0, y + (y ? 2 : 0), W, (h - 2) / 2, '#383c9c'); R(0, y ? y + 1 : h - 2, W, 1, UI.white);
 }
 function nameplate(str, x, y) {
   const w = tw(str) + 10;
@@ -1471,7 +1555,7 @@ function playScene(h) {
     draw() {
       game.draw();
       fxDraw();
-      // HUD
+      hudStrip(0);
       text(h.name, 4, 3, UI.yellow, { sh: UI.ink });
       if (h.id === 'gamble') text(money(getMoney()) + ' left in your pocket', W - 4, 3, UI.pink, { r: 1, sh: UI.ink });
       else {
@@ -1597,26 +1681,6 @@ function nightScene() {
   };
 }
 
-/* Repaints a scene with Hold It In's cafe palette and ordered dithering. */
-const DUSK = ["#7f4d9f", "#5f3f97", "#2c2266", "#2d1433", "#5b3176", "#51296c", "#e8b9a0", "#46223f", "#623176", "#6e3a80", "#5c3f97", "#463289", "#a85f97", "#7b4c96", "#6a3f9c", "#54293f", "#3a2d7a", "#2b2a45", "#b4569f", "#3b1c3e", "#6a3640", "#8a5240", "#3f1f3f", "#f3dcc8", "#e8487f", "#e8c9b8", "#1c1440", "#7c4545", "#fdfbff", "#a85a48", "#b87850", "#3b8a68", "#ffd76e", "#f07f9f", "#ff8fc0", "#fff3c0", "#4fa877", "#d8d4f0", "#9a5a48", "#ffe680", "#42265f", "#4a2a68", "#f4e6f4", "#834587", "#753b7e", "#c97258", "#a2619a", "#ffe6c0", "#fdf0e2", "#8fd6a8", "#ffffff", "#7fd69a"].map(h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]);
-const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-function dusk(c) {
-  const x = c.getContext('2d'), im = x.getImageData(0, 0, c.width, c.height), d = im.data, seen = new Map();
-  for (let i = 0; i < d.length; i += 4) {
-    const px = (i / 4) % c.width, py = (i / 4 / c.width) | 0, n = (BAYER[(py % 4) * 4 + px % 4] / 16 - .5) * 34;
-    const r = d[i] + n, gr = d[i + 1] + n, b = d[i + 2] + n, key = (r & 255) << 16 | (gr & 255) << 8 | (b & 255);
-    let hit = seen.get(key);
-    if (!hit) {
-      let best = 1e9;
-      for (const p of DUSK) { const e = (r - p[0]) ** 2 * 2 + (gr - p[1]) ** 2 * 4 + (b - p[2]) ** 2 * 3; if (e < best) { best = e; hit = p; } }
-      seen.set(key, hit);
-    }
-    d[i] = hit[0]; d[i + 1] = hit[1]; d[i + 2] = hit[2];
-  }
-  x.putImageData(im, 0, 0);
-  return c;
-}
-[DOG_BG, DEAL_BG, PIMP_BG, VAULT_BG, CASINO_BG, FRAUD_BG].forEach(dusk);
 const SCENE = { dogs: DOG_BG, deal: DEAL_BG, pimp: PIMP_BG, heist: VAULT_BG, fraud: FRAUD_BG, gamble: CASINO_BG };
 
 /* ---------------------------------------------------------------- main loop */
